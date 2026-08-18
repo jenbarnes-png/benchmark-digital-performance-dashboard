@@ -60,20 +60,22 @@ export default function RankingsFilters({
         </select>
       </label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium text-black/70 dark:text-white/70">Period</span>
-        <select
-          value={current.period ?? ""}
-          onChange={(e) => update("period", e.target.value)}
-          className="rounded-md border border-black/15 bg-transparent px-3 py-1.5 text-sm dark:border-white/20"
-        >
-          {periods.map((p) => (
-            <option key={p.start} value={p.start}>
-              {formatPeriodLabel(p)}
-            </option>
-          ))}
-        </select>
-      </label>
+      {periods.length > 0 && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-black/70 dark:text-white/70">Period</span>
+          <select
+            value={current.period ?? ""}
+            onChange={(e) => update("period", e.target.value)}
+            className="rounded-md border border-black/15 bg-transparent px-3 py-1.5 text-sm dark:border-white/20"
+          >
+            {periods.map((p) => (
+              <option key={p.start} value={p.start}>
+                {formatPeriodLabel(p)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {(current.region || current.cohort) && (
         <button

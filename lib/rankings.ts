@@ -276,7 +276,7 @@ export type RankingRow = {
 export type RankingsResult = {
   rows: RankingRow[];
   periods: Period[];
-  targetPeriod: Period;
+  targetPeriod: Period | null;
   previousPeriod: Period | null;
   regions: string[];
   cohorts: string[];
@@ -295,6 +295,23 @@ export async function getRankings(filters: {
     listCohorts(),
     getLastUpdated(),
   ]);
+
+  // No activity has been tracked for anyone yet — every constituency is
+  // shown, unranked/scoreless, rather than crashing on a missing period.
+  if (periods.length === 0) {
+    const rows: RankingRow[] = constituencies
+      .filter((c) => !filters.region || c.region === filters.region)
+      .filter((c) => !filters.cohort || c.cohort === filters.cohort)
+      .map((c) => ({
+        constituency: c,
+        rank: 1,
+        score: null,
+        previousScore: null,
+        change: { delta: null, direction: "unknown" as const },
+        organicByPlatform: [],
+      }));
+    return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
+  }
 
   const targetPeriod = periods.find((p) => p.start === filters.period) ?? periods[0];
   const targetIndex = periods.findIndex((p) => p.start === targetPeriod.start);
@@ -329,9 +346,17 @@ export async function getRankings(filters: {
   return { rows, periods, targetPeriod, previousPeriod, regions, cohorts, lastUpdated };
 }
 
+const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
+  overall: null,
+  adSpend: { spent: 0, target: 0, hasData: false, byPlatform: [] },
+  organic: { total: 0, hasData: false, byPlatform: [] },
+  group: { postCount: 0, hasData: false },
+  newsletter: { sendCount: 0, hasData: false },
+};
+
 export type ConstituencyDetail = {
   constituency: Constituency;
-  targetPeriod: Period;
+  targetPeriod: Period | null;
   previousPeriod: Period | null;
   nationalRank: number;
   nationalCount: number;
@@ -355,6 +380,30 @@ export async function getConstituencyDetail(
 
   const constituency = constituencies.find((c) => c.id === constituencyId);
   if (!constituency) return null;
+
+  if (periods.length === 0) {
+    const nationalRanked = rankByScore(constituencies.map((c) => ({ id: c.id, score: null })));
+    const national = nationalRanked.find((r) => r.id === constituencyId)!;
+    const regionalRanked = rankByScore(
+      constituencies.filter((c) => c.region === constituency.region).map((c) => ({ id: c.id, score: null }))
+    );
+    const regional = regionalRanked.find((r) => r.id === constituencyId)!;
+
+    return {
+      constituency,
+      targetPeriod: null,
+      previousPeriod: null,
+      nationalRank: national.rank,
+      nationalCount: constituencies.length,
+      regionalRank: regional.rank,
+      regionalCount: constituencies.filter((c) => c.region === constituency.region).length,
+      score: null,
+      change: { delta: null, direction: "unknown" },
+      current: { period: "", periodEnd: "", ...EMPTY_METRICS },
+      history: [],
+      lastUpdated: null,
+    };
+  }
 
   const targetPeriod = periods.find((p) => p.start === periodStart) ?? periods[0];
   const targetIndex = periods.findIndex((p) => p.start === targetPeriod.start);

@@ -12,10 +12,14 @@ import {
 
 export type FormState = { error: string } | null;
 
+function field(formData: FormData, key: string): string | null {
+  const value = String(formData.get(key) ?? "").trim();
+  return value || null;
+}
+
 function parseInput(formData: FormData): ConstituencyInput | { error: string } {
-  const name = String(formData.get("name") ?? "").trim();
-  const region = String(formData.get("region") ?? "").trim();
-  const mpOrCandidateNameRaw = String(formData.get("mpOrCandidateName") ?? "").trim();
+  const name = field(formData, "name");
+  const region = field(formData, "region");
 
   if (!name) return { error: "Constituency name is required." };
   if (!region) return { error: "Region/nation is required." };
@@ -23,8 +27,12 @@ function parseInput(formData: FormData): ConstituencyInput | { error: string } {
   return {
     name,
     region,
-    mpOrCandidateName: mpOrCandidateNameRaw || null,
+    mpOrCandidateName: field(formData, "mpOrCandidateName"),
     isPilot: formData.get("isPilot") === "on",
+    facebookUrl: field(formData, "facebookUrl"),
+    tiktokUrl: field(formData, "tiktokUrl"),
+    instagramUrl: field(formData, "instagramUrl"),
+    xUrl: field(formData, "xUrl"),
   };
 }
 

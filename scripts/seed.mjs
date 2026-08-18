@@ -1,3 +1,9 @@
+// FICTIONAL DEMO DATA — do not run this against the live database.
+// It wipes all constituencies and replaces them with 8 made-up seats,
+// which would overwrite the real MPs loaded by scripts/import_mps.mjs.
+// Kept only as a reference/reset for local experimentation with a
+// throwaway database.
+//
 // Seeds sample data for the pilot: 8 constituencies, 4 platforms, and 8
 // weeks of activity across all four activity tables, with some
 // deliberate gaps (has_data = false) to demonstrate the missing-vs-zero

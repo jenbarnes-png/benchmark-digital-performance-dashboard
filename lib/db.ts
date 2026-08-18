@@ -24,6 +24,10 @@ export type Constituency = {
   cohort: string | null;
   is_pilot: boolean;
   hex_id: string | null;
+  facebook_url: string | null;
+  tiktok_url: string | null;
+  instagram_url: string | null;
+  x_url: string | null;
   created_at: string;
 };
 
@@ -32,6 +36,10 @@ export type ConstituencyInput = {
   mpOrCandidateName: string | null;
   region: string;
   isPilot: boolean;
+  facebookUrl: string | null;
+  tiktokUrl: string | null;
+  instagramUrl: string | null;
+  xUrl: string | null;
 };
 
 export async function listConstituencies(): Promise<Constituency[]> {
@@ -45,8 +53,11 @@ export async function getConstituency(id: string): Promise<Constituency | undefi
 
 export async function createConstituency(input: ConstituencyInput): Promise<string> {
   const rows = await sql<{ id: string }[]>`
-    insert into constituencies (name, mp_or_candidate_name, region, is_pilot)
-    values (${input.name}, ${input.mpOrCandidateName}, ${input.region}, ${input.isPilot})
+    insert into constituencies
+      (name, mp_or_candidate_name, region, is_pilot, facebook_url, tiktok_url, instagram_url, x_url)
+    values
+      (${input.name}, ${input.mpOrCandidateName}, ${input.region}, ${input.isPilot},
+       ${input.facebookUrl}, ${input.tiktokUrl}, ${input.instagramUrl}, ${input.xUrl})
     returning id
   `;
   return rows[0].id;
@@ -58,7 +69,11 @@ export async function updateConstituency(id: string, input: ConstituencyInput): 
     set name = ${input.name},
         mp_or_candidate_name = ${input.mpOrCandidateName},
         region = ${input.region},
-        is_pilot = ${input.isPilot}
+        is_pilot = ${input.isPilot},
+        facebook_url = ${input.facebookUrl},
+        tiktok_url = ${input.tiktokUrl},
+        instagram_url = ${input.instagramUrl},
+        x_url = ${input.xUrl}
     where id = ${id}
   `;
 }
