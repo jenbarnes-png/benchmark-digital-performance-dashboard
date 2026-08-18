@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { getConstituencyDetail } from "@/lib/rankings";
+import { getAdsForConstituency } from "@/lib/ads";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
 import { platformColor } from "@/app/components/platformColors";
 import MetricCard from "./MetricCard";
 import ActivityCharts from "./ActivityCharts";
+import AdsList from "./AdsList";
 
 const ORGANIC_PLATFORMS = ["Facebook", "Instagram", "TikTok", "YouTube"];
 
@@ -17,7 +19,7 @@ export default async function ConstituencyDetailPage({
   const sp = await searchParams;
   const period = typeof sp.period === "string" ? sp.period : undefined;
 
-  const detail = await getConstituencyDetail(id, period);
+  const [detail, ads] = await Promise.all([getConstituencyDetail(id, period), getAdsForConstituency(id)]);
   if (!detail) notFound();
 
   const { constituency, current, targetPeriod } = detail;
@@ -117,10 +119,16 @@ export default async function ConstituencyDetailPage({
           <MetricCard
             title="Paid advertising"
             hasData={current.adSpend.hasData}
-            primary={`£${current.adSpend.spent.toLocaleString()} of £${current.adSpend.target.toLocaleString()}`}
+            primary={
+              current.adSpend.target > 0
+                ? `£${current.adSpend.spent.toLocaleString()} of £${current.adSpend.target.toLocaleString()}`
+                : `£${current.adSpend.spent.toLocaleString()} spent`
+            }
             secondary={
               current.adSpend.hasData
-                ? `${Math.round((current.adSpend.spent / (current.adSpend.target || 1)) * 100)}% of target`
+                ? current.adSpend.target > 0
+                  ? `${Math.round((current.adSpend.spent / current.adSpend.target) * 100)}% of target`
+                  : "No target set"
                 : undefined
             }
           />
@@ -148,6 +156,16 @@ export default async function ConstituencyDetailPage({
             Charts will appear here once activity has been tracked for a few weeks.
           </p>
         )}
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">Paid advertising — individual ads</h2>
+        <p className="mt-1 text-sm text-black/60 dark:text-white/60">
+          From Meta&apos;s public Ad Library, most recent first.
+        </p>
+        <div className="mt-4">
+          <AdsList ads={ads} />
+        </div>
       </div>
     </div>
   );
