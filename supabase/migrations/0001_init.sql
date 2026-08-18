@@ -9,7 +9,7 @@ create extension if not exists pgcrypto;
 -- The 650 UK constituencies (20 for the pilot). `region` holds either an
 -- English region (e.g. 'London') or a nation (e.g. 'Scotland', 'Wales',
 -- 'Northern Ireland'), matching how ONS/Parliament classify seats.
-create table constituencies (
+create table if not exists constituencies (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
   region text not null,
@@ -21,7 +21,7 @@ create table constituencies (
 );
 
 -- People who log in: MP team members, regional directors, HQ admins.
-create table users (
+create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   email text not null unique,
@@ -31,13 +31,13 @@ create table users (
 );
 
 -- Reference list of platforms tracked (Facebook, Instagram, X, TikTok, ...).
-create table platforms (
+create table if not exists platforms (
   id uuid primary key default gen_random_uuid(),
   name text not null unique
 );
 
 -- Ad spend by platform against centrally set targets.
-create table ad_spend (
+create table if not exists ad_spend (
   id uuid primary key default gen_random_uuid(),
   constituency_id uuid not null references constituencies(id),
   platform_id uuid not null references platforms(id),
@@ -54,7 +54,7 @@ create table ad_spend (
 );
 
 -- Organic posting activity by platform.
-create table organic_posts (
+create table if not exists organic_posts (
   id uuid primary key default gen_random_uuid(),
   constituency_id uuid not null references constituencies(id),
   platform_id uuid not null references platforms(id),
@@ -71,7 +71,7 @@ create table organic_posts (
 
 -- Activity in local Facebook community groups (usually no account access,
 -- so this is expected to stay manually logged for the foreseeable future).
-create table facebook_group_activity (
+create table if not exists facebook_group_activity (
   id uuid primary key default gen_random_uuid(),
   constituency_id uuid not null references constituencies(id),
   period_start date not null,
@@ -86,7 +86,7 @@ create table facebook_group_activity (
 );
 
 -- Newsletter send frequency.
-create table newsletter_sends (
+create table if not exists newsletter_sends (
   id uuid primary key default gen_random_uuid(),
   constituency_id uuid not null references constituencies(id),
   period_start date not null,

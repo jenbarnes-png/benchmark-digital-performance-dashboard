@@ -7,7 +7,7 @@ export default async function EditConstituencyPage({
   params,
 }: PageProps<"/admin/constituencies/[id]/edit">) {
   const { id } = await params;
-  const constituency = getConstituency(id);
+  const constituency = await getConstituency(id);
 
   if (!constituency) notFound();
 

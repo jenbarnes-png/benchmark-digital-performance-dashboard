@@ -36,7 +36,7 @@ export async function createConstituencyAction(
   if ("error" in input) return input;
 
   try {
-    createConstituency(input);
+    await createConstituency(input);
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return { error: `A constituency named "${input.name}" already exists.` };
@@ -57,7 +57,7 @@ export async function updateConstituencyAction(
   if ("error" in input) return input;
 
   try {
-    updateConstituency(id, input);
+    await updateConstituency(id, input);
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       return { error: `A constituency named "${input.name}" already exists.` };
@@ -70,7 +70,7 @@ export async function updateConstituencyAction(
 }
 
 export async function deleteConstituencyAction(id: string): Promise<void> {
-  deleteConstituency(id);
+  await deleteConstituency(id);
   revalidatePath("/admin/constituencies");
   redirect("/admin/constituencies");
 }

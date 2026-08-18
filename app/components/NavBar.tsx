@@ -3,7 +3,7 @@ import Link from "next/link";
 const navItems = [
   { href: "/", label: "National Dashboard" },
   { href: "/rankings", label: "Rankings" },
-  { href: "/constituency/sample-seat", label: "Constituency Detail" },
+  { href: "/constituency", label: "Constituency Detail" },
   { href: "/admin", label: "Admin / Data Entry" },
 ];
 

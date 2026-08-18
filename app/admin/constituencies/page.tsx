@@ -2,8 +2,8 @@ import Link from "next/link";
 import { listConstituencies } from "@/lib/db";
 import { deleteConstituencyAction } from "./actions";
 
-export default function ConstituenciesPage() {
-  const constituencies = listConstituencies();
+export default async function ConstituenciesPage() {
+  const constituencies = await listConstituencies();
 
   return (
     <div className="space-y-6">
