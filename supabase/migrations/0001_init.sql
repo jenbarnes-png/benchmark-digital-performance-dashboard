@@ -6,10 +6,12 @@
 
 create extension if not exists pgcrypto;
 
--- The 650 UK constituencies (20 for the pilot).
+-- The 650 UK constituencies (20 for the pilot). `region` holds either an
+-- English region (e.g. 'London') or a nation (e.g. 'Scotland', 'Wales',
+-- 'Northern Ireland'), matching how ONS/Parliament classify seats.
 create table constituencies (
   id uuid primary key default gen_random_uuid(),
-  name text not null,
+  name text not null unique,
   region text not null,
   cohort text, -- e.g. 'target', 'marginal', 'safe'
   mp_or_candidate_name text,
