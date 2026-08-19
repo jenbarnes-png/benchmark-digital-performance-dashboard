@@ -24,10 +24,6 @@ export type Constituency = {
   cohort: string | null;
   is_pilot: boolean;
   hex_id: string | null;
-  facebook_url: string | null;
-  tiktok_url: string | null;
-  instagram_url: string | null;
-  x_url: string | null;
   created_at: string;
 };
 
@@ -36,10 +32,6 @@ export type ConstituencyInput = {
   mpOrCandidateName: string | null;
   region: string;
   isPilot: boolean;
-  facebookUrl: string | null;
-  tiktokUrl: string | null;
-  instagramUrl: string | null;
-  xUrl: string | null;
 };
 
 export async function listConstituencies(): Promise<Constituency[]> {
@@ -51,35 +43,84 @@ export async function getConstituency(id: string): Promise<Constituency | undefi
   return rows[0];
 }
 
+/**
+ * Creates the constituency and, if an MP/candidate name is given, an
+ * opening representatives row for them — see updateConstituency for
+ * why this stays in sync with mp_or_candidate_name automatically
+ * rather than requiring a separate step.
+ */
 export async function createConstituency(input: ConstituencyInput): Promise<string> {
-  const rows = await sql<{ id: string }[]>`
-    insert into constituencies
-      (name, mp_or_candidate_name, region, is_pilot, facebook_url, tiktok_url, instagram_url, x_url)
-    values
-      (${input.name}, ${input.mpOrCandidateName}, ${input.region}, ${input.isPilot},
-       ${input.facebookUrl}, ${input.tiktokUrl}, ${input.instagramUrl}, ${input.xUrl})
-    returning id
-  `;
-  return rows[0].id;
+  return sql.begin(async (sql) => {
+    const rows = await sql<{ id: string }[]>`
+      insert into constituencies (name, mp_or_candidate_name, region, is_pilot)
+      values (${input.name}, ${input.mpOrCandidateName}, ${input.region}, ${input.isPilot})
+      returning id
+    `;
+    const id = rows[0].id;
+    if (input.mpOrCandidateName) {
+      await sql`insert into representatives (constituency_id, name) values (${id}, ${input.mpOrCandidateName})`;
+    }
+    return id;
+  });
 }
 
+/**
+ * mp_or_candidate_name is a denormalized "current value" cache —
+ * representatives is the source of truth for tenure history. When the
+ * name actually changes, this ends the current representative's tenure
+ * and opens a new one in the same transaction, so the two can never
+ * drift apart. A same-name save (editing region, say) doesn't touch
+ * representatives at all.
+ */
 export async function updateConstituency(id: string, input: ConstituencyInput): Promise<void> {
-  await sql`
-    update constituencies
-    set name = ${input.name},
-        mp_or_candidate_name = ${input.mpOrCandidateName},
-        region = ${input.region},
-        is_pilot = ${input.isPilot},
-        facebook_url = ${input.facebookUrl},
-        tiktok_url = ${input.tiktokUrl},
-        instagram_url = ${input.instagramUrl},
-        x_url = ${input.xUrl}
-    where id = ${id}
-  `;
+  await sql.begin(async (sql) => {
+    const [current] = await sql<{ mp_or_candidate_name: string | null }[]>`
+      select mp_or_candidate_name from constituencies where id = ${id}
+    `;
+
+    await sql`
+      update constituencies
+      set name = ${input.name},
+          mp_or_candidate_name = ${input.mpOrCandidateName},
+          region = ${input.region},
+          is_pilot = ${input.isPilot}
+      where id = ${id}
+    `;
+
+    if (input.mpOrCandidateName !== current?.mp_or_candidate_name) {
+      await sql`
+        update representatives set ended_at = current_date
+        where constituency_id = ${id} and ended_at is null
+      `;
+      if (input.mpOrCandidateName) {
+        await sql`insert into representatives (constituency_id, name) values (${id}, ${input.mpOrCandidateName})`;
+      }
+    }
+  });
 }
 
 export async function deleteConstituency(id: string): Promise<void> {
   await sql`delete from constituencies where id = ${id}`;
+}
+
+export type SocialAccount = {
+  platform: string;
+  handle: string | null;
+  profile_url: string | null;
+  external_id: string | null;
+  follower_count: number | null;
+  is_active: boolean;
+};
+
+/** The current representative's active social accounts, one row per platform account. */
+export async function getCurrentSocialAccounts(constituencyId: string): Promise<SocialAccount[]> {
+  return sql<SocialAccount[]>`
+    select sa.platform, sa.handle, sa.profile_url, sa.external_id, sa.follower_count, sa.is_active
+    from social_accounts sa
+    join representatives r on r.id = sa.representative_id
+    where r.constituency_id = ${constituencyId} and r.ended_at is null and sa.ended_at is null
+    order by sa.platform
+  `;
 }
 
 export function isUniqueConstraintError(error: unknown): boolean {

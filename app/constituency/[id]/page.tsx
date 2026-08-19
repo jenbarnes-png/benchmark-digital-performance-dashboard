@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getConstituencyDetail } from "@/lib/rankings";
 import { getAdsForConstituency } from "@/lib/ads";
+import { getCurrentSocialAccounts } from "@/lib/db";
 import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import ScoreBar from "@/app/components/ScoreBar";
@@ -20,7 +21,11 @@ export default async function ConstituencyDetailPage({
   const sp = await searchParams;
   const period = typeof sp.period === "string" ? sp.period : undefined;
 
-  const [detail, ads] = await Promise.all([getConstituencyDetail(id, period), getAdsForConstituency(id)]);
+  const [detail, ads, socialAccounts] = await Promise.all([
+    getConstituencyDetail(id, period),
+    getAdsForConstituency(id),
+    getCurrentSocialAccounts(id),
+  ]);
   if (!detail) notFound();
 
   const { constituency, current, targetPeriod } = detail;
@@ -35,27 +40,19 @@ export default async function ConstituencyDetailPage({
             {constituency.cohort && ` · ${constituency.cohort}`}
           </p>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm">
-            {(
-              [
-                ["Facebook", constituency.facebook_url],
-                ["Instagram", constituency.instagram_url],
-                ["TikTok", constituency.tiktok_url],
-                ["X", constituency.x_url],
-              ] as const
-            ).map(
-              ([label, url]) =>
-                url && (
-                  <a
-                    key={label}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-                  >
-                    {label}
-                  </a>
-                )
-            )}
+            {socialAccounts
+              .filter((a) => a.profile_url)
+              .map((a) => (
+                <a
+                  key={a.platform}
+                  href={a.profile_url!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                >
+                  {a.platform === "x" ? "X" : a.platform === "tiktok" ? "TikTok" : a.platform[0].toUpperCase() + a.platform.slice(1)}
+                </a>
+              ))}
           </div>
         </div>
         <div className="text-right text-sm text-black/50 dark:text-white/50">

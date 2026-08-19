@@ -13,7 +13,7 @@ export default function NavBar() {
     <header className="border-b border-black/10 dark:border-white/15">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-6 px-6 py-4">
         <span className="font-semibold tracking-tight">
-          Digital Performance Dashboard
+          Benchmark: Digital Campaign Manager
         </span>
         <nav className="flex flex-wrap gap-1">
           {navItems.map((item) => (

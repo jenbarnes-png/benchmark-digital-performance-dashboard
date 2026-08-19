@@ -29,10 +29,6 @@ function parseInput(formData: FormData): ConstituencyInput | { error: string } {
     region,
     mpOrCandidateName: field(formData, "mpOrCandidateName"),
     isPilot: formData.get("isPilot") === "on",
-    facebookUrl: field(formData, "facebookUrl"),
-    tiktokUrl: field(formData, "tiktokUrl"),
-    instagramUrl: field(formData, "instagramUrl"),
-    xUrl: field(formData, "xUrl"),
   };
 }
 

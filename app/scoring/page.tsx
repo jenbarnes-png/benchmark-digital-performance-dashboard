@@ -23,6 +23,24 @@ export default function ScoringPage() {
         </p>
       </div>
 
+      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-5 dark:border-indigo-900 dark:bg-indigo-950/40">
+        <h2 className="text-lg font-semibold tracking-tight text-indigo-900 dark:text-indigo-200">
+          The Dream Week
+        </h2>
+        <div className="mt-2 space-y-2 text-sm text-indigo-900/80 dark:text-indigo-200/80">
+          <p>
+            The Dream Week is the gold standard for local digital campaigning. The goal is to
+            reach it week in and week out to grow your digital presence in the places that
+            matter to your constituents. We&apos;ll support your office to achieve it with
+            on-demand resources, training sessions and more.
+          </p>
+          <p>
+            Check this dashboard to see how you&apos;re progressing, how close you are to
+            reaching the Dream Week, and how you rank compared to other offices.
+          </p>
+        </div>
+      </div>
+
       <Section title="Overall score">
         <p>
           Each constituency gets an overall score out of 100 for each week, calculated as the

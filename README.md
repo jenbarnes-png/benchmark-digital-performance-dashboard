@@ -1,4 +1,4 @@
-# Digital Performance Dashboard
+# Benchmark: Digital Campaign Manager
 
 A campaign hub for Labour MPs and candidates to see all of their digital
 campaign activity in one place: ad spend, organic posting, Facebook group
@@ -6,16 +6,13 @@ activity, and newsletter sends, compared across constituencies.
 
 ## Status
 
-This is an early scaffold. The four main pages exist as placeholders with
-no live data yet:
+Live pages, backed by Supabase:
 
-- `/` — National Dashboard (hexmap)
-- `/rankings` — Rankings (sortable table / league tables)
-- `/constituency/[slug]` — Constituency Detail
-- `/admin` — Admin / Data Entry
-
-The database schema is defined in `supabase/migrations/0001_init.sql` but
-is not yet connected to a running database — that's the next step.
+- `/` — National Dashboard (hex map, shaded by live Meta ad activity)
+- `/rankings` — National leaderboard, sortable, filterable by region/cohort
+- `/constituency/[id]` — Constituency Detail (score, rank, platform breakdown, ads)
+- `/scoring` — How the ranking model works
+- `/admin` — Constituency admin (see and edit MPs, regions, social links)
 
 ## Running it locally
 
@@ -28,5 +25,5 @@ Then open [http://localhost:3000](http://localhost:3000).
 ## Stack
 
 - **Next.js** (App Router, TypeScript, Tailwind CSS) — pages and app logic
-- **Supabase** (Postgres) — database, once connected
-- **Vercel** — hosting, once deployed
+- **Supabase** (Postgres) — database
+- **Meta Ad Library API** — live political ad tracking

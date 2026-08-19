@@ -75,33 +75,16 @@ export default function ConstituencyForm({
         </label>
       </div>
 
-      <fieldset className="space-y-4 border-t border-black/10 pt-5 dark:border-white/15">
-        <legend className="px-0 text-sm font-medium text-black/70 dark:text-white/70">
-          Social media profiles (optional)
-        </legend>
-        {(
-          [
-            ["facebookUrl", "Facebook", initialValues?.facebook_url],
-            ["tiktokUrl", "TikTok", initialValues?.tiktok_url],
-            ["instagramUrl", "Instagram", initialValues?.instagram_url],
-            ["xUrl", "X", initialValues?.x_url],
-          ] as const
-        ).map(([fieldName, label, value]) => (
-          <div key={fieldName}>
-            <label htmlFor={fieldName} className="block text-sm font-medium">
-              {label}
-            </label>
-            <input
-              id={fieldName}
-              name={fieldName}
-              type="url"
-              defaultValue={value ?? ""}
-              className="mt-1 w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
-              placeholder="https://..."
-            />
-          </div>
-        ))}
-      </fieldset>
+      {initialValues && (
+        <p className="border-t border-black/10 pt-5 text-sm text-black/50 dark:border-white/15 dark:text-white/50">
+          Social media profiles are managed per representative now, not per constituency —
+          see the{" "}
+          <Link href={`/constituency/${initialValues.id}`} className="underline">
+            constituency detail page
+          </Link>
+          . A dedicated editing screen for these is coming soon.
+        </p>
+      )}
 
       {state?.error && (
         <p className="text-sm text-red-700 dark:text-red-400">{state.error}</p>

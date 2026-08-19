@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Digital Performance Dashboard",
+  title: "Benchmark: Digital Campaign Manager",
   description: "Campaign hub for Labour MPs and candidates' digital activity",
 };
 
