@@ -1,6 +1,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { HexPosition } from "./hexGeometry";
+
+export type { HexPosition } from "./hexGeometry";
+export { hexPoints } from "./hexGeometry";
 
 // Source: Open Innovations' UK constituency hex map (MIT licensed),
 // matching the current (2024 boundary review) 650 constituencies —
@@ -20,8 +24,6 @@ function loadHexJson(): HexJson {
   if (!cached) cached = JSON.parse(readFileSync(HEXJSON_PATH, "utf8"));
   return cached!;
 }
-
-export type HexPosition = { code: string; name: string; x: number; y: number };
 
 export function getHexLayout(): { positions: HexPosition[]; hexSize: number; viewBox: string } {
   const data = loadHexJson();
@@ -45,19 +47,4 @@ export function getHexLayout(): { positions: HexPosition[]; hexSize: number; vie
   const height = Math.max(...ys) - minY + pad;
 
   return { positions, hexSize: HEX_SIZE, viewBox: `${minX} ${minY} ${width} ${height}` };
-}
-
-/** SVG polygon points for a pointy-top hexagon centered at (cx, cy). */
-export function hexPoints(cx: number, cy: number, size: number): string {
-  const short = size * Math.cos(Math.PI / 6);
-  const half = size / 2;
-  const vertices: [number, number][] = [
-    [cx, cy - size],
-    [cx + short, cy - half],
-    [cx + short, cy + half],
-    [cx, cy + size],
-    [cx - short, cy + half],
-    [cx - short, cy - half],
-  ];
-  return vertices.map(([x, y]) => `${x},${y}`).join(" ");
 }

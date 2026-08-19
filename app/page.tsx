@@ -1,6 +1,7 @@
-import { getConstituencyAdStatuses } from "@/lib/hexmapData";
+import { getAdHexStatuses, getTiktokHexStatuses, getOverallHexStatuses } from "@/lib/hexmapData";
 import { getTopTiktokVideosNational } from "@/lib/tiktokVideos";
-import HexMap from "./components/HexMap";
+import { getHexLayout } from "@/lib/hexmap";
+import HexMapToggle from "./components/HexMapToggle";
 import TiktokVideoCard from "./components/TiktokVideoCard";
 
 // Without this, Next prerenders the homepage once at build/deploy time
@@ -9,12 +10,15 @@ import TiktokVideoCard from "./components/TiktokVideoCard";
 export const dynamic = "force-dynamic";
 
 export default async function NationalDashboardPage() {
-  const [statuses, topTiktokVideos] = await Promise.all([
-    getConstituencyAdStatuses(),
+  const [adStatuses, tiktokStatuses, overallStatuses, topTiktokVideos] = await Promise.all([
+    getAdHexStatuses(),
+    getTiktokHexStatuses(),
+    getOverallHexStatuses(),
     getTopTiktokVideosNational(3),
   ]);
-  const trackedCount = statuses.size;
-  const activeCount = Array.from(statuses.values()).filter((s) => s.status === "active").length;
+  const { positions, hexSize, viewBox } = getHexLayout();
+  const trackedCount = adStatuses.size;
+  const activeCount = Array.from(adStatuses.values()).filter((s) => s.tier === "active").length;
 
   return (
     <div className="space-y-10">
@@ -27,7 +31,14 @@ export default async function NationalDashboardPage() {
         </p>
       </div>
 
-      <HexMap statuses={statuses} />
+      <HexMapToggle
+        positions={positions}
+        hexSize={hexSize}
+        viewBox={viewBox}
+        overall={Array.from(overallStatuses.entries())}
+        ads={Array.from(adStatuses.entries())}
+        tiktok={Array.from(tiktokStatuses.entries())}
+      />
 
       <div>
         <h2 className="text-lg font-semibold tracking-tight">TikTok shout-outs</h2>
