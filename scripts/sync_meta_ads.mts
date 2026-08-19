@@ -1,12 +1,12 @@
 // Fetches current political ad data for every resolved advertiser,
-// stores it, and rolls it up into this week's ad_spend figures. Safe to
-// run repeatedly (same day or many times a day) — everything is
+// stores it, and rolls it up into a trailing-60-day ad_spend figure.
+// Safe to run repeatedly (same day or many times a day) — everything is
 // upserted, never duplicated.
 //
 // Run with: npx tsx --env-file=.env.local scripts/sync_meta_ads.ts
 import { sql } from "../lib/db";
 import { syncMetaAds } from "../lib/adSpendSync";
-import { aggregateAdSpendForWeek } from "../lib/adSpendAggregation";
+import { aggregateRecentAdSpend } from "../lib/adSpendAggregation";
 
 const accessToken = process.env.META_ACCESS_TOKEN;
 if (!accessToken) {
@@ -33,8 +33,8 @@ weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
 const periodStart = weekStart.toISOString().slice(0, 10);
 const periodEnd = weekEnd.toISOString().slice(0, 10);
 
-console.log(`Aggregating spend for the week of ${periodStart}...`);
-await aggregateAdSpendForWeek(periodStart, periodEnd);
+console.log(`Aggregating trailing 60-day spend as of ${periodEnd}...`);
+await aggregateRecentAdSpend(periodStart, periodEnd);
 
 console.log("Done.");
 await sql.end();

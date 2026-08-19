@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { platformColor } from "@/app/components/platformColors";
 import { formatPeriodLabel } from "@/lib/format";
+import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
 import type { PeriodMetrics } from "@/lib/rankings";
 
 const ORGANIC_PLATFORMS = ["Facebook", "Instagram", "TikTok", "YouTube"];
@@ -104,7 +105,7 @@ export default function ActivityCharts({ history }: { history: PeriodMetrics[] }
 
       <div>
         <h3 className="mb-3 text-sm font-semibold text-black/70 dark:text-white/70">
-          Ad spend vs target
+          Ad spend (trailing {RECENT_WINDOW_DAYS} days) vs target
         </h3>
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={adSpendData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>

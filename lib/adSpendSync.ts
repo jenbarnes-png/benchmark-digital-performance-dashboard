@@ -53,24 +53,30 @@ export async function syncMetaAds(accessToken: string): Promise<SyncSummary> {
       const impressionsMin = num(ad.impressions?.lower_bound);
       const impressionsMax = num(ad.impressions?.upper_bound);
 
+      // ad_snapshot_url embeds our live Meta access token in its query
+      // string — never store or display it. We link out via the ad's
+      // own public Ad Library page instead (see lib/ads.ts), built from
+      // just the ad ID, which needs no token.
+      const { ad_snapshot_url: _unusedSnapshotUrl, ...adWithoutSnapshotUrl } = ad;
+      void _unusedSnapshotUrl;
+
       const [{ inserted }] = await sql<{ inserted: boolean }[]>`
         insert into ads (
           advertiser_id, external_ad_id, ad_creative_body, ad_creative_link_title,
-          ad_snapshot_url, page_name, currency, spend_min, spend_max,
+          page_name, currency, spend_min, spend_max,
           impressions_min, impressions_max, publisher_platforms,
           ad_delivery_start_time, ad_delivery_stop_time, is_active, last_synced_at, raw_json
         ) values (
           ${advertiserId}, ${ad.id}, ${ad.ad_creative_bodies?.[0] ?? null},
-          ${ad.ad_creative_link_titles?.[0] ?? null}, ${ad.ad_snapshot_url ?? null},
+          ${ad.ad_creative_link_titles?.[0] ?? null},
           ${ad.page_name ?? null}, ${ad.currency ?? null}, ${spendMin}, ${spendMax},
           ${impressionsMin}, ${impressionsMax}, ${ad.publisher_platforms ?? null},
           ${ad.ad_delivery_start_time ?? null}, ${ad.ad_delivery_stop_time ?? null},
-          ${active}, now(), ${JSON.stringify(ad)}
+          ${active}, now(), ${sql.json(adWithoutSnapshotUrl)}
         )
         on conflict (external_ad_id) do update set
           ad_creative_body = excluded.ad_creative_body,
           ad_creative_link_title = excluded.ad_creative_link_title,
-          ad_snapshot_url = excluded.ad_snapshot_url,
           spend_min = excluded.spend_min,
           spend_max = excluded.spend_max,
           impressions_min = excluded.impressions_min,

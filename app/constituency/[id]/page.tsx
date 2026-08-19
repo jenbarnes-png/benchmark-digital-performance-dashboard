@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getConstituencyDetail } from "@/lib/rankings";
 import { getAdsForConstituency } from "@/lib/ads";
+import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
@@ -117,7 +118,7 @@ export default async function ConstituencyDetailPage({
             );
           })}
           <MetricCard
-            title="Paid advertising"
+            title={`Paid advertising (last ${RECENT_WINDOW_DAYS} days)`}
             hasData={current.adSpend.hasData}
             primary={
               current.adSpend.target > 0
@@ -161,7 +162,7 @@ export default async function ConstituencyDetailPage({
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Paid advertising — individual ads</h2>
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          From Meta&apos;s public Ad Library, most recent first.
+          From Meta&apos;s public Ad Library, active in the last {RECENT_WINDOW_DAYS} days, most recent first.
         </p>
         <div className="mt-4">
           <AdsList ads={ads} />

@@ -48,23 +48,26 @@ export default function AdsList({ ads }: { ads: AdListItem[] }) {
             <p className="mt-2 text-sm font-semibold">{ad.creativeLinkTitle}</p>
           )}
           {ad.creativeBody && (
-            <p className="mt-1 line-clamp-3 text-sm text-black/70 dark:text-white/70">{ad.creativeBody}</p>
+            <p className="mt-1 whitespace-pre-line text-sm text-black/70 dark:text-white/70">
+              {ad.creativeBody}
+            </p>
+          )}
+          {!ad.creativeBody && !ad.creativeLinkTitle && (
+            <p className="mt-2 text-sm text-black/40 dark:text-white/40">No text creative available.</p>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-black/50 dark:text-white/50">
-            <span>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs text-black/50 dark:text-white/50">
               {formatDate(ad.deliveryStart)} — {ad.deliveryStop ? formatDate(ad.deliveryStop) : "ongoing"}
             </span>
-            {ad.snapshotUrl && (
-              <a
-                href={ad.snapshotUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-              >
-                View ad on Meta →
-              </a>
-            )}
+            <a
+              href={ad.publicLibraryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md bg-black/5 px-3 py-1.5 text-xs font-medium text-black/70 hover:bg-black/10 dark:bg-white/10 dark:text-white/70 dark:hover:bg-white/15"
+            >
+              See full ad &amp; image/video on Meta →
+            </a>
           </div>
         </div>
       ))}
