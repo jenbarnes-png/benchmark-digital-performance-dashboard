@@ -43,10 +43,14 @@ export default function ScoringPage() {
 
       <Section title="Overall score">
         <p>
-          Each constituency gets an overall score out of 100 for each week, calculated as the
-          average of whichever metrics below have data that week. A metric with no data isn&apos;t
-          counted as zero — it&apos;s left out of the average entirely, so an incomplete-data seat
-          doesn&apos;t look like an inactive one.
+          Each constituency gets an overall score out of 100 for each week: real points earned
+          across every metric below (paid advertising, TikTok, organic posting, group activity,
+          newsletter), divided by the total points possible across <em>all</em> of them — always,
+          not just the ones with data that week. A seat doing well on just one metric no longer
+          scores like a strong all-rounder; a metric with no data pulls the score down, the same as
+          zero activity on that metric would. The one exception: a seat with no data anywhere shows
+          as &quot;No data&quot; rather than a misleadingly exact 0, since we can&apos;t yet tell
+          &quot;confirmed inactive&quot; from &quot;not tracked yet&quot;.
         </p>
       </Section>
 
@@ -75,8 +79,9 @@ export default function ScoringPage() {
           </li>
         </ul>
         <p>
-          A constituency we haven&apos;t matched to an advertiser Page yet is excluded from this
-          metric entirely (shown as no data), not scored as zero.
+          A constituency we haven&apos;t matched to an advertiser Page yet shows &quot;no
+          data&quot; for this metric specifically — but it still counts as 0 toward the overall
+          score above, the same as a matched constituency with no recent ad activity.
         </p>
       </Section>
 
@@ -100,9 +105,9 @@ export default function ScoringPage() {
           internal Brandwatch-backed TikTok data warehouse, maintained by Hani and refreshed every
           few hours, matched against our 28 pilot MPs by name. You can see it on the National
           Dashboard and each constituency&apos;s page. A constituency whose MP we haven&apos;t
-          matched to a TikTok account yet is excluded from this metric entirely (shown as no
-          data), not scored as zero — same rule as paid advertising above. Scored out of{" "}
-          {TIKTOK_MAX_POINTS} points:
+          matched to a TikTok account yet shows &quot;no data&quot; for this metric
+          specifically — but, like paid advertising, it still counts as 0 toward the overall score
+          above. Scored out of {TIKTOK_MAX_POINTS} points:
         </p>
         <ul className="ml-4 list-disc space-y-1">
           <li>Posted within the last 48 hours — 1 point</li>

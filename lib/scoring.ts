@@ -44,9 +44,14 @@ export function scoreMetric(input: MetricInput): MetricScore {
 }
 
 /**
- * Overall score: average of the metrics that have data. Metrics with no
- * data are excluded rather than counted as zero, so an incomplete-data
- * seat doesn't look like an inactive one.
+ * Overall score: real points earned across every metric, divided by the
+ * total possible across ALL of them — always, not just the ones with
+ * data. A seat doing well on just one metric no longer scores like a
+ * strong all-rounder; a metric with no data pulls the score down, same
+ * as zero activity would. The one exception: a seat with literally no
+ * data anywhere shows as "No data" (null) rather than a misleadingly
+ * exact 0, since we can't yet tell "confirmed inactive" from "not
+ * tracked".
  */
 export function overallScore(metrics: MetricScore[]): number | null {
   const withData = metrics.filter(
@@ -54,7 +59,7 @@ export function overallScore(metrics: MetricScore[]): number | null {
   );
   if (withData.length === 0) return null;
   const sum = withData.reduce((total, m) => total + m.score, 0);
-  return Math.round(sum / withData.length);
+  return Math.round(sum / metrics.length);
 }
 
 export type ChangeDirection = "up" | "down" | "flat" | "unknown";
