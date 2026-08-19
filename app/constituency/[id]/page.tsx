@@ -2,16 +2,22 @@ import { notFound } from "next/navigation";
 import { getConstituencyDetail } from "@/lib/rankings";
 import { getAdsForConstituency } from "@/lib/ads";
 import { getCurrentSocialAccounts } from "@/lib/db";
+import { getTiktokVideosForConstituency } from "@/lib/tiktokVideos";
 import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
 import { platformColor } from "@/app/components/platformColors";
+import TiktokVideoCard from "@/app/components/TiktokVideoCard";
 import MetricCard from "./MetricCard";
 import ActivityCharts from "./ActivityCharts";
 import AdsList from "./AdsList";
 
-const ORGANIC_PLATFORMS = ["Facebook", "Instagram", "TikTok", "YouTube"];
+// TikTok isn't in this list: its manually-entered organic_posts count
+// would sit right above the real automated TikTok section (follower
+// count + videos) further down this page and always read "No data
+// reported", which contradicts the real data directly below it.
+const ORGANIC_PLATFORMS = ["Facebook", "Instagram", "YouTube"];
 
 export default async function ConstituencyDetailPage({
   params,
@@ -21,14 +27,16 @@ export default async function ConstituencyDetailPage({
   const sp = await searchParams;
   const period = typeof sp.period === "string" ? sp.period : undefined;
 
-  const [detail, ads, socialAccounts] = await Promise.all([
+  const [detail, ads, socialAccounts, tiktokVideos] = await Promise.all([
     getConstituencyDetail(id, period),
     getAdsForConstituency(id),
     getCurrentSocialAccounts(id),
+    getTiktokVideosForConstituency(id),
   ]);
   if (!detail) notFound();
 
   const { constituency, current, targetPeriod } = detail;
+  const tiktokAccount = socialAccounts.find((a) => a.platform === "tiktok");
 
   return (
     <div className="space-y-8">
@@ -165,6 +173,33 @@ export default async function ConstituencyDetailPage({
           <AdsList ads={ads} />
         </div>
       </div>
+
+      {tiktokAccount && (
+        <div>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold tracking-tight">TikTok</h2>
+            {tiktokAccount.follower_count !== null && (
+              <span className="text-sm text-black/60 dark:text-white/60">
+                {tiktokAccount.follower_count.toLocaleString()} followers
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
+            Top videos in the last {RECENT_WINDOW_DAYS} days, ranked by views.
+          </p>
+          {tiktokVideos.length > 0 ? (
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {tiktokVideos.map((video) => (
+                <TiktokVideoCard key={video.id} video={video} showMp={false} />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-lg border border-dashed border-black/20 p-6 text-center text-sm text-black/50 dark:border-white/20 dark:text-white/50">
+              No videos posted in the last {RECENT_WINDOW_DAYS} days.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

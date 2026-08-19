@@ -1,8 +1,8 @@
 // TikTok activity scoring: up to 5 points per week, on the same 0-100
-// scale as every other scored metric (see lib/scoring.ts). Not yet wired
-// into the overall ranking average — there's no TikTok data flowing yet
-// (no compliant automated source exists; manual entry isn't built),
-// but the formula itself is ready and correct for when it is.
+// scale as every other scored metric (see lib/scoring.ts). Wired into
+// the overall ranking average in lib/rankings.ts, same pattern as
+// lib/adRecency.ts — a constituency with no matched TikTok account is
+// excluded from the average (hasData: false), not scored as zero.
 
 export const TIKTOK_MAX_POINTS = 5;
 
@@ -60,4 +60,15 @@ export function weeklyBestPostWinner(videosInPeriod: TiktokVideoLite[]): string 
 
 export function scoreForTiktokPoints(points: number): number {
   return Math.max(0, Math.min(TIKTOK_MAX_POINTS, points)) * (100 / TIKTOK_MAX_POINTS);
+}
+
+/** hasData-aware wrapper, same shape as adRecency's scoreForAdRecency — a
+ * constituency with no matched TikTok account has no basis for a score at
+ * all, so it's excluded from the overall average rather than dragged down. */
+export function scoreForTiktok(params: { hasAccount: boolean; points: number }): {
+  hasData: boolean;
+  score: number | null;
+} {
+  if (!params.hasAccount) return { hasData: false, score: null };
+  return { hasData: true, score: scoreForTiktokPoints(params.points) };
 }

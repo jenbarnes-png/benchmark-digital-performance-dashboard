@@ -90,14 +90,18 @@ export default function ScoringPage() {
       </Section>
 
       <Section title="TikTok">
-        <p className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-          Defined, not live yet — no data source is connected
+        <p className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+          Live for the 28 pilot MPs — counted in the overall score
         </p>
         <p>
-          TikTok has no compliant automated public-data source at present (confirmed against
-          TikTok&apos;s own current API documentation and the third-party data-provider market as of
-          August 2026) — so this metric will run on manually entered data rather than an automatic
-          sync. Once that data starts flowing, scoring will work like this, out of{" "}
+          TikTok has no compliant automated public-data source we can pull ourselves (confirmed
+          against TikTok&apos;s own current API documentation and the third-party data-provider
+          market as of August 2026). Video and follower data shown here instead comes from an
+          internal Brandwatch-backed TikTok data warehouse, maintained by Hani and refreshed every
+          few hours, matched against our 28 pilot MPs by name. You can see it on the National
+          Dashboard and each constituency&apos;s page. A constituency whose MP we haven&apos;t
+          matched to a TikTok account yet is excluded from this metric entirely (shown as no
+          data), not scored as zero — same rule as paid advertising above. Scored out of{" "}
           {TIKTOK_MAX_POINTS} points:
         </p>
         <ul className="ml-4 list-disc space-y-1">

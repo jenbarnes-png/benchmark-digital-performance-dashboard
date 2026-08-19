@@ -1,6 +1,7 @@
 import { sql, type Constituency } from "./db";
 import { scoreMetric, overallScore, scoreChange, rankByScore, type MetricScore } from "./scoring";
 import { classifyAdRecency, scoreForAdRecency, type AdRecencyStatus } from "./adRecency";
+import { recencyPoints, weeklyBestPostWinner, scoreForTiktok, type TiktokVideoLite } from "./tiktokScoring";
 
 export type Period = { start: string; end: string };
 
@@ -105,6 +106,7 @@ export type PeriodMetrics = {
   organic: { total: number; hasData: boolean; byPlatform: PlatformBreakdown[] };
   group: { postCount: number; hasData: boolean };
   newsletter: { sendCount: number; hasData: boolean };
+  tiktok: { points: number; hasData: boolean; isBestPostWinner: boolean };
 };
 
 /**
@@ -113,28 +115,99 @@ export type PeriodMetrics = {
  * the shape both pages need — scoring rules live here, once.
  */
 async function buildMetricsIndex() {
-  const [organic, adSpend, groupRaw, newsletterRaw, platforms, periods, advertiserRows, adWindowRows] =
-    await Promise.all([
-      sql<OrganicRow[]>`select constituency_id, platform_id, period_start::text, post_count, has_data from organic_posts`,
-      sql<AdSpendRow[]>`select constituency_id, platform_id, period_start::text, amount_spent, target_amount, has_data from ad_spend`,
-      sql<{ constituency_id: string; period_start: string; post_count: number | null; has_data: boolean }[]>`
+  const [
+    organic,
+    adSpend,
+    groupRaw,
+    newsletterRaw,
+    platforms,
+    periods,
+    advertiserRows,
+    adWindowRows,
+    tiktokAccountRows,
+    tiktokVideoRows,
+  ] = await Promise.all([
+    sql<OrganicRow[]>`select constituency_id, platform_id, period_start::text, post_count, has_data from organic_posts`,
+    sql<AdSpendRow[]>`select constituency_id, platform_id, period_start::text, amount_spent, target_amount, has_data from ad_spend`,
+    sql<{ constituency_id: string; period_start: string; post_count: number | null; has_data: boolean }[]>`
       select constituency_id, period_start::text, post_count, has_data from facebook_group_activity
     `,
-      sql<{ constituency_id: string; period_start: string; send_count: number | null; has_data: boolean }[]>`
+    sql<{ constituency_id: string; period_start: string; send_count: number | null; has_data: boolean }[]>`
       select constituency_id, period_start::text, send_count, has_data from newsletter_sends
     `,
-      sql<PlatformRow[]>`select id, name from platforms`,
-      listPeriods(),
-      sql<{ constituency_id: string }[]>`
+    sql<PlatformRow[]>`select id, name from platforms`,
+    listPeriods(),
+    sql<{ constituency_id: string }[]>`
       select distinct constituency_id from advertisers where platform = 'meta' and ended_at is null
     `,
-      sql<{ constituency_id: string; start: string | null; stop: string | null }[]>`
+    sql<{ constituency_id: string; start: string | null; stop: string | null }[]>`
       select a.constituency_id, ads.ad_delivery_start_time::text as start, ads.ad_delivery_stop_time::text as stop
       from ads
       join advertisers a on a.id = ads.advertiser_id
       where a.platform = 'meta' and a.ended_at is null
     `,
-    ]);
+    sql<{ constituency_id: string }[]>`
+      select distinct r.constituency_id
+      from social_accounts sa
+      join representatives r on r.id = sa.representative_id and r.ended_at is null
+      where sa.platform = 'tiktok' and sa.ended_at is null
+    `,
+    sql<{ constituency_id: string; posted_at: string; view_count: number | null; like_count: number | null }[]>`
+      select r.constituency_id, tv.posted_at::text, tv.view_count, tv.like_count
+      from tiktok_videos tv
+      join social_accounts sa on sa.id = tv.account_id and sa.ended_at is null
+      join representatives r on r.id = sa.representative_id and r.ended_at is null
+    `,
+  ]);
+
+  const tiktokAccountConstituencyIds = new Set(tiktokAccountRows.map((r) => r.constituency_id));
+  const tiktokVideosByConstituency = new Map<
+    string,
+    { postedAt: string; viewCount: number | null; likeCount: number | null }[]
+  >();
+  for (const row of tiktokVideoRows) {
+    if (!tiktokVideosByConstituency.has(row.constituency_id)) tiktokVideosByConstituency.set(row.constituency_id, []);
+    tiktokVideosByConstituency
+      .get(row.constituency_id)!
+      .push({ postedAt: row.posted_at, viewCount: row.view_count, likeCount: row.like_count });
+  }
+
+  /** Recency points as of a given date, same "cap at reference date" rule as adRecencyAsOf. */
+  function tiktokPointsAsOf(constituencyId: string, referenceDate: Date): number {
+    const videos = tiktokVideosByConstituency.get(constituencyId) ?? [];
+    let mostRecent: string | null = null;
+    for (const v of videos) {
+      const postedAt = new Date(v.postedAt);
+      if (postedAt > referenceDate) continue;
+      if (!mostRecent || new Date(mostRecent) < postedAt) mostRecent = v.postedAt;
+    }
+    return recencyPoints(mostRecent, referenceDate);
+  }
+
+  // Computed once per period (not per constituency) and cached — the
+  // winner is a single national comparison, not a per-seat lookup.
+  const bestPostWinnerByPeriod = new Map<string, string | null>();
+  function bestPostWinnerFor(period: Period): string | null {
+    const cached = bestPostWinnerByPeriod.get(period.start);
+    if (cached !== undefined) return cached;
+
+    const rangeStart = new Date(period.start);
+    const rangeEnd = new Date(period.end);
+    rangeEnd.setUTCHours(23, 59, 59, 999);
+
+    const videosInPeriod: TiktokVideoLite[] = [];
+    for (const [constituencyId, videos] of tiktokVideosByConstituency) {
+      for (const v of videos) {
+        const postedAt = new Date(v.postedAt);
+        if (postedAt >= rangeStart && postedAt <= rangeEnd) {
+          videosInPeriod.push({ constituencyId, postedAt: v.postedAt, viewCount: v.viewCount, likeCount: v.likeCount });
+        }
+      }
+    }
+    const winner = weeklyBestPostWinner(videosInPeriod);
+    bestPostWinnerByPeriod.set(period.start, winner);
+    return winner;
+  }
 
   const advertiserConstituencyIds = new Set(advertiserRows.map((r) => r.constituency_id));
   const adWindowsByConstituency = new Map<string, { start: string | null; stop: string | null }[]>();
@@ -198,6 +271,7 @@ async function buildMetricsIndex() {
       ...group.map((r) => r.constituency_id),
       ...newsletter.map((r) => r.constituency_id),
       ...advertiserConstituencyIds,
+      ...tiktokAccountConstituencyIds,
     ])
   );
 
@@ -210,11 +284,12 @@ async function buildMetricsIndex() {
     organic: PeriodMetrics["organic"];
     group: PeriodMetrics["group"];
     newsletter: PeriodMetrics["newsletter"];
+    tiktok: { hasAccount: boolean; points: number; isBestPostWinner: boolean };
   };
   const rawPoints: RawPoint[] = [];
 
   for (const constituencyId of constituencyIds) {
-    for (const { start } of periods) {
+    for (const { start, end } of periods) {
       const key = periodKey(constituencyId, start);
 
       const organicRows = organicByKey.get(key) ?? [];
@@ -239,7 +314,12 @@ async function buildMetricsIndex() {
 
       const groupRow = groupByKey.get(key);
       const newsletterRow = newsletterByKey.get(key);
-      const recencyStatus = adRecencyAsOf(constituencyId, new Date(periodEnd[start]));
+      const periodEndDate = new Date(periodEnd[start]);
+      const recencyStatus = adRecencyAsOf(constituencyId, periodEndDate);
+
+      const tiktokWinnerId = bestPostWinnerFor({ start, end });
+      const tiktokIsBestPostWinner = tiktokWinnerId === constituencyId;
+      const tiktokPoints = tiktokPointsAsOf(constituencyId, periodEndDate) + (tiktokIsBestPostWinner ? 1 : 0);
 
       rawPoints.push({
         constituencyId,
@@ -259,6 +339,11 @@ async function buildMetricsIndex() {
         newsletter: {
           sendCount: newsletterRow?.has_data ? (newsletterRow.value ?? 0) : 0,
           hasData: newsletterRow?.has_data ?? false,
+        },
+        tiktok: {
+          hasAccount: tiktokAccountConstituencyIds.has(constituencyId),
+          points: tiktokPoints,
+          isBestPostWinner: tiktokIsBestPostWinner,
         },
       });
     }
@@ -303,6 +388,7 @@ async function buildMetricsIndex() {
         value: point.newsletter.sendCount,
         peerValues: peers.newsletter,
       }),
+      { key: "tiktok", ...scoreForTiktok({ hasAccount: point.tiktok.hasAccount, points: point.tiktok.points }) },
     ];
 
     index.set(periodKey(point.constituencyId, point.period), {
@@ -313,6 +399,11 @@ async function buildMetricsIndex() {
       organic: point.organic,
       group: point.group,
       newsletter: point.newsletter,
+      tiktok: {
+        points: point.tiktok.points,
+        hasData: point.tiktok.hasAccount,
+        isBestPostWinner: point.tiktok.isBestPostWinner,
+      },
     });
   }
 
@@ -407,6 +498,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
   newsletter: { sendCount: 0, hasData: false },
+  tiktok: { points: 0, hasData: false, isBestPostWinner: false },
 };
 
 export type ConstituencyDetail = {
