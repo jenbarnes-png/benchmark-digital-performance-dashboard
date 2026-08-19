@@ -113,7 +113,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Overall score", "score"],
                 ["Ads live", "adLive"],
                 ["Posted TikTok (last 30 days)", "tiktokRecent"],
-                ["TikTok reach (this week)", "tiktokReach"],
+                ["TikTok reach (last 30 days)", "tiktokReach"],
                 ["Change", "change"],
               ] as [string, SortKey][]
             ).map(([label, key]) => (

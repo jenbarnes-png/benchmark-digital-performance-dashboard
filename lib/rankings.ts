@@ -124,7 +124,7 @@ export type PeriodMetrics = {
     points: number;
     hasData: boolean;
     isBestPostWinner: boolean;
-    /** Total views across videos posted within the period — see tiktokReachFor. */
+    /** Total views across videos posted in the last 30 days — see tiktokReachFor. */
     reach: number;
     /** Posted at all in the 30 days before this period ended — the loosest of the four stacking recency tiers. */
     postedInLast30Days: boolean;
@@ -245,12 +245,18 @@ async function buildMetricsIndex() {
     return winner;
   }
 
-  /** Total views across videos posted within the period — our proxy for
-   * "reach", since TikTok's own reach figures aren't exposed to us; only
-   * view counts are. */
-  function tiktokReachFor(constituencyId: string, period: Period): number {
-    const videos = videosInPeriodByConstituency(period).get(constituencyId) ?? [];
-    return videos.reduce((sum, v) => sum + (v.viewCount ?? 0), 0);
+  /** Total views across videos posted in the 30 days before the reference
+   * date — our proxy for "reach", since TikTok's own reach figures aren't
+   * exposed to us, only per-video view counts. Same trailing-30-day
+   * window as tiktokPointsAsOf's loosest tier, not the calendar week. */
+  function tiktokReachFor(constituencyId: string, referenceDate: Date): number {
+    const cutoff = new Date(referenceDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const videos = tiktokVideosByConstituency.get(constituencyId) ?? [];
+    return videos.reduce((sum, v) => {
+      const postedAt = new Date(v.postedAt);
+      if (postedAt > referenceDate || postedAt < cutoff) return sum;
+      return sum + (v.viewCount ?? 0);
+    }, 0);
   }
 
   const advertiserConstituencyIds = new Set(advertiserRows.map((r) => r.constituency_id));
@@ -399,7 +405,7 @@ async function buildMetricsIndex() {
           hasAccount: tiktokAccountConstituencyIds.has(constituencyId),
           points: tiktokPoints,
           isBestPostWinner: tiktokIsBestPostWinner,
-          reach: tiktokReachFor(constituencyId, { start, end }),
+          reach: tiktokReachFor(constituencyId, periodEndDate),
           postedInLast30Days: tiktokPostedInLast30Days,
         },
       });

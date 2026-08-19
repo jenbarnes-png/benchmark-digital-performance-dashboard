@@ -45,12 +45,12 @@ function toItem(r: Row): TiktokVideoItem {
   };
 }
 
-/** The best-performing videos nationally in the last RECENT_WINDOW_DAYS days, one per MP at most, ranked by views. */
-export async function getTopTiktokVideosNational(limit = 6): Promise<TiktokVideoItem[]> {
-  const windowStart = new Date(Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
+/** The single best-performing videos nationally in the last 30 days, ranked by views — a shout-out list, not one-per-MP. */
+export async function getTopTiktokVideosNational(limit = 3): Promise<TiktokVideoItem[]> {
+  const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
   const rows = await sql<Row[]>`
-    select distinct on (r.id)
+    select
       tv.id, tv.video_url, tv.posted_at::text, tv.view_count, tv.like_count, tv.comment_count, tv.share_count,
       sa.handle, r.name as mp_name, c.id as constituency_id, c.name as constituency_name
     from tiktok_videos tv
@@ -58,13 +58,11 @@ export async function getTopTiktokVideosNational(limit = 6): Promise<TiktokVideo
     join representatives r on r.id = sa.representative_id and r.ended_at is null
     join constituencies c on c.id = r.constituency_id
     where tv.posted_at >= ${windowStart}
-    order by r.id, tv.view_count desc nulls last
+    order by tv.view_count desc nulls last
+    limit ${limit}
   `;
 
-  return rows
-    .sort((a, b) => (b.view_count ?? 0) - (a.view_count ?? 0))
-    .slice(0, limit)
-    .map(toItem);
+  return rows.map(toItem);
 }
 
 /** A constituency's own videos in the last RECENT_WINDOW_DAYS days, most viewed first. */
