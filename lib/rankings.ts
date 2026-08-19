@@ -1,5 +1,6 @@
 import { sql, type Constituency } from "./db";
 import { scoreMetric, overallScore, scoreChange, rankByScore, type MetricScore } from "./scoring";
+import { classifyAdRecency, scoreForAdRecency, type AdRecencyStatus } from "./adRecency";
 
 export type Period = { start: string; end: string };
 
@@ -94,7 +95,13 @@ export type PeriodMetrics = {
   period: string;
   periodEnd: string;
   overall: number | null;
-  adSpend: { spent: number; target: number; hasData: boolean; byPlatform: AdPlatformBreakdown[] };
+  adSpend: {
+    spent: number;
+    target: number;
+    hasData: boolean;
+    byPlatform: AdPlatformBreakdown[];
+    recencyStatus: AdRecencyStatus;
+  };
   organic: { total: number; hasData: boolean; byPlatform: PlatformBreakdown[] };
   group: { postCount: number; hasData: boolean };
   newsletter: { sendCount: number; hasData: boolean };
@@ -106,18 +113,58 @@ export type PeriodMetrics = {
  * the shape both pages need — scoring rules live here, once.
  */
 async function buildMetricsIndex() {
-  const [organic, adSpend, groupRaw, newsletterRaw, platforms, periods] = await Promise.all([
-    sql<OrganicRow[]>`select constituency_id, platform_id, period_start::text, post_count, has_data from organic_posts`,
-    sql<AdSpendRow[]>`select constituency_id, platform_id, period_start::text, amount_spent, target_amount, has_data from ad_spend`,
-    sql<{ constituency_id: string; period_start: string; post_count: number | null; has_data: boolean }[]>`
+  const [organic, adSpend, groupRaw, newsletterRaw, platforms, periods, advertiserRows, adWindowRows] =
+    await Promise.all([
+      sql<OrganicRow[]>`select constituency_id, platform_id, period_start::text, post_count, has_data from organic_posts`,
+      sql<AdSpendRow[]>`select constituency_id, platform_id, period_start::text, amount_spent, target_amount, has_data from ad_spend`,
+      sql<{ constituency_id: string; period_start: string; post_count: number | null; has_data: boolean }[]>`
       select constituency_id, period_start::text, post_count, has_data from facebook_group_activity
     `,
-    sql<{ constituency_id: string; period_start: string; send_count: number | null; has_data: boolean }[]>`
+      sql<{ constituency_id: string; period_start: string; send_count: number | null; has_data: boolean }[]>`
       select constituency_id, period_start::text, send_count, has_data from newsletter_sends
     `,
-    sql<PlatformRow[]>`select id, name from platforms`,
-    listPeriods(),
-  ]);
+      sql<PlatformRow[]>`select id, name from platforms`,
+      listPeriods(),
+      sql<{ constituency_id: string }[]>`
+      select distinct constituency_id from advertisers where platform = 'meta' and ended_at is null
+    `,
+      sql<{ constituency_id: string; start: string | null; stop: string | null }[]>`
+      select a.constituency_id, ads.ad_delivery_start_time::text as start, ads.ad_delivery_stop_time::text as stop
+      from ads
+      join advertisers a on a.id = ads.advertiser_id
+      where a.platform = 'meta' and a.ended_at is null
+    `,
+    ]);
+
+  const advertiserConstituencyIds = new Set(advertiserRows.map((r) => r.constituency_id));
+  const adWindowsByConstituency = new Map<string, { start: string | null; stop: string | null }[]>();
+  for (const row of adWindowRows) {
+    if (!adWindowsByConstituency.has(row.constituency_id)) adWindowsByConstituency.set(row.constituency_id, []);
+    adWindowsByConstituency.get(row.constituency_id)!.push({ start: row.start, stop: row.stop });
+  }
+
+  /** Ad recency as of a given date, capping "last activity" at that date
+   * so a future ad can't retroactively make a past period look active. */
+  function adRecencyAsOf(constituencyId: string, referenceDate: Date): AdRecencyStatus {
+    const windows = adWindowsByConstituency.get(constituencyId) ?? [];
+    let isActiveAsOf = false;
+    let lastActivityAt: string | null = null;
+    for (const w of windows) {
+      if (!w.start) continue;
+      const startDate = new Date(w.start);
+      if (startDate > referenceDate) continue;
+      const stopDate = w.stop ? new Date(w.stop) : null;
+      if (!stopDate || stopDate >= referenceDate) isActiveAsOf = true;
+      const activityEnd = stopDate && stopDate < referenceDate ? stopDate : referenceDate;
+      if (!lastActivityAt || new Date(lastActivityAt) < activityEnd) lastActivityAt = activityEnd.toISOString();
+    }
+    return classifyAdRecency({
+      hasAdvertiser: advertiserConstituencyIds.has(constituencyId),
+      isActiveAsOf,
+      lastActivityAt,
+      referenceDate,
+    });
+  }
 
   const platformName = Object.fromEntries(platforms.map((p) => [p.id, p.name]));
   const periodEnd = Object.fromEntries(periods.map((p) => [p.start, p.end]));
@@ -145,7 +192,13 @@ async function buildMetricsIndex() {
   );
 
   const constituencyIds = Array.from(
-    new Set([...organic, ...adSpend, ...group, ...newsletter].map((r) => r.constituency_id))
+    new Set([
+      ...organic.map((r) => r.constituency_id),
+      ...adSpend.map((r) => r.constituency_id),
+      ...group.map((r) => r.constituency_id),
+      ...newsletter.map((r) => r.constituency_id),
+      ...advertiserConstituencyIds,
+    ])
   );
 
   // First pass: raw aggregates per constituency+period (no scoring yet —
@@ -186,11 +239,18 @@ async function buildMetricsIndex() {
 
       const groupRow = groupByKey.get(key);
       const newsletterRow = newsletterByKey.get(key);
+      const recencyStatus = adRecencyAsOf(constituencyId, new Date(periodEnd[start]));
 
       rawPoints.push({
         constituencyId,
         period: start,
-        adSpend: { spent: adSpentTotal, target: adTargetTotal, hasData: adHasData, byPlatform: adByPlatform },
+        adSpend: {
+          spent: adSpentTotal,
+          target: adTargetTotal,
+          hasData: adHasData,
+          byPlatform: adByPlatform,
+          recencyStatus,
+        },
         organic: { total: organicTotal, hasData: organicHasData, byPlatform: organicByPlatform },
         group: {
           postCount: groupRow?.has_data ? (groupRow.value ?? 0) : 0,
@@ -224,12 +284,7 @@ async function buildMetricsIndex() {
   for (const point of rawPoints) {
     const peers = peersByPeriod.get(point.period)!;
     const metrics: MetricScore[] = [
-      scoreMetric({
-        key: "adSpend",
-        hasData: point.adSpend.hasData,
-        value: point.adSpend.spent,
-        target: point.adSpend.target,
-      }),
+      { key: "adSpend", ...scoreForAdRecency(point.adSpend.recencyStatus) },
       scoreMetric({
         key: "organic",
         hasData: point.organic.hasData,
@@ -348,7 +403,7 @@ export async function getRankings(filters: {
 
 const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   overall: null,
-  adSpend: { spent: 0, target: 0, hasData: false, byPlatform: [] },
+  adSpend: { spent: 0, target: 0, hasData: false, byPlatform: [], recencyStatus: "no_advertiser" },
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
   newsletter: { sendCount: 0, hasData: false },

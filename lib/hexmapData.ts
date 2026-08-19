@@ -1,11 +1,10 @@
 import { sql } from "./db";
-
-const RECENT_WINDOW_DAYS = 60;
+import { classifyAdRecency, type AdRecencyStatus } from "./adRecency";
 
 export type ConstituencyAdStatus = {
   constituencyId: string;
   name: string;
-  status: "no_advertiser" | "stale" | "recent" | "active";
+  status: AdRecencyStatus;
   activeAdCount: number;
   lastActivityAt: string | null;
 };
@@ -13,14 +12,9 @@ export type ConstituencyAdStatus = {
 /**
  * One row per constituency currently in our system (only the pilot MPs
  * for now — the map itself covers all 650 hexes, but only these will
- * have anything other than "not yet tracked" to show).
- *
- * Status is a snapshot, not an activity count: "active" means an ad is
- * running right now, "recent" means nothing's running but something was
- * within the last two months, "stale" means confirmed no activity in
- * that window (or ever). "no_advertiser" stays distinct from "stale" —
- * it means we haven't found their Page yet, not that we checked and
- * found nothing.
+ * have anything other than "not yet tracked" to show). Status is
+ * "as of right now" — see lib/rankings.ts for the same classification
+ * applied historically, per ranking period.
  */
 export async function getConstituencyAdStatuses(): Promise<Map<string, ConstituencyAdStatus>> {
   const rows = await sql<
@@ -44,18 +38,17 @@ export async function getConstituencyAdStatuses(): Promise<Map<string, Constitue
     group by c.id, c.name, a.id
   `;
 
-  const cutoff = Date.now() - RECENT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const now = new Date();
 
   const map = new Map<string, ConstituencyAdStatus>();
   for (const row of rows) {
     const activeAdCount = Number(row.active_ad_count);
-    const status: ConstituencyAdStatus["status"] = !row.has_advertiser
-      ? "no_advertiser"
-      : activeAdCount > 0
-        ? "active"
-        : row.last_activity_at && new Date(row.last_activity_at).getTime() >= cutoff
-          ? "recent"
-          : "stale";
+    const status = classifyAdRecency({
+      hasAdvertiser: row.has_advertiser,
+      isActiveAsOf: activeAdCount > 0,
+      lastActivityAt: row.last_activity_at,
+      referenceDate: now,
+    });
 
     map.set(row.name, {
       constituencyId: row.constituency_id,

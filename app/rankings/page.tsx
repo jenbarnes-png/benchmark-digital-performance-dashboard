@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getRankings } from "@/lib/rankings";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import RankingsFilters from "./RankingsFilters";
@@ -22,8 +23,11 @@ export default async function RankingsPage({
             {data.targetPeriod ? (
               <>
                 National leaderboard for {formatPeriodLabel(data.targetPeriod)}. Scores are a
-                provisional model — ad spend against target, other activity relative to the other
-                pilot seats.
+                provisional model —{" "}
+                <Link href="/scoring" className="underline hover:text-black dark:hover:text-white">
+                  see how scoring works
+                </Link>
+                .
               </>
             ) : (
               <>

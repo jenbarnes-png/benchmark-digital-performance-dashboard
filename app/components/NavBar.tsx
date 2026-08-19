@@ -4,6 +4,7 @@ const navItems = [
   { href: "/", label: "National Dashboard" },
   { href: "/rankings", label: "Rankings" },
   { href: "/constituency", label: "Constituency Detail" },
+  { href: "/scoring", label: "How Scoring Works" },
   { href: "/admin", label: "Admin / Data Entry" },
 ];
 
