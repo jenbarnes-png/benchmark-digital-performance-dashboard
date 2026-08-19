@@ -46,13 +46,13 @@ export async function syncTiktokFromSheet(): Promise<TiktokSyncSummary> {
     where c.is_pilot = true and r.ended_at is null
   `;
 
-  const [dimAccounts, factVideo, factAccountDay, existingManualRows] = await Promise.all([
+  const [dimAccounts, factVideo, factAccountDay, existingTiktokRows] = await Promise.all([
     fetchDimAccounts(),
     fetchFactVideo(),
     fetchFactAccountDay(),
-    sql<{ representative_id: string; profile_url: string | null }[]>`
-      select representative_id, profile_url from social_accounts
-      where platform = 'tiktok' and source = 'manual' and ended_at is null
+    sql<{ representative_id: string; handle: string | null; profile_url: string | null; source: string }[]>`
+      select representative_id, handle, profile_url, source from social_accounts
+      where platform = 'tiktok' and ended_at is null
     `,
   ]);
 
@@ -66,10 +66,23 @@ export async function syncTiktokFromSheet(): Promise<TiktokSyncSummary> {
     ...factAccountDay.map((v) => v.username.toLowerCase()),
   ]);
 
+  // A rep already matched on a previous run (source: 'automatic') must
+  // keep matching on every later run too, even after this same sync's
+  // cleanup step ends their old manual placeholder below — otherwise a
+  // rep whose only path to a match was a hand-entered handle (no
+  // dim_accounts name match) would silently drop out of tracking the
+  // moment that placeholder is gone. Manual rows are read first, then
+  // automatic rows override them, so a real match always wins.
   const knownHandleByRepId = new Map<string, string>();
-  for (const row of existingManualRows) {
+  for (const row of existingTiktokRows) {
+    if (row.source !== "manual") continue;
     const handle = extractHandleFromProfileUrl(row.profile_url);
     if (handle) knownHandleByRepId.set(row.representative_id, handle);
+  }
+  for (const row of existingTiktokRows) {
+    if (row.source === "automatic" && row.handle) {
+      knownHandleByRepId.set(row.representative_id, row.handle.toLowerCase());
+    }
   }
 
   const matched: TiktokSyncSummary["matched"] = [];
