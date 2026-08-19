@@ -92,9 +92,8 @@ export default function ScoringPage() {
           Live for the 28 pilot MPs
         </p>
         <p>
-          Sourced from an internal Brandwatch-backed data warehouse (maintained by Hani, refreshed
-          every few hours) — TikTok has no public API we can pull ourselves. Scored out of{" "}
-          {TIKTOK_MAX_POINTS} points:
+          Sourced from an internal data warehouse, refreshed every few hours — TikTok has no
+          public API we can pull ourselves. Scored out of {TIKTOK_MAX_POINTS} points:
         </p>
         <ul className="ml-4 list-disc space-y-1">
           <li>Posted within the last 48 hours — 1 point</li>
