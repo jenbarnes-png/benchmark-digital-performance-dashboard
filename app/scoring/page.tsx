@@ -41,26 +41,39 @@ export default function ScoringPage() {
         </div>
       </div>
 
-      <Section title="Overall score">
-        <p>
-          Shown as real points earned out of the total possible so far —{" "}
-          <strong>
-            {AD_RECENCY_POINTS.active} for paid advertising + {TIKTOK_MAX_POINTS} for TikTok ={" "}
-            {AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS} points
-          </strong>{" "}
-          — not a percentage, e.g. &quot;3 / 7&quot;.
-        </p>
-        <p>
-          A metric with no data counts as 0, same as no activity would — so doing well on just
-          one metric doesn&apos;t look like a strong all-rounder. A seat with no data on
-          <em> either</em> metric shows &quot;No data&quot; instead of a misleading 0.
-        </p>
-        <p>
-          Organic posting, group activity and newsletter sends appear on their own cards but
-          don&apos;t count toward this score yet — they&apos;ll join once they have a points
-          scale of their own.
-        </p>
-      </Section>
+      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-5 dark:border-indigo-900 dark:bg-indigo-950/40">
+        <h2 className="text-lg font-semibold tracking-tight text-indigo-900 dark:text-indigo-200">
+          What does success look like?
+        </h2>
+        <div className="mt-2 space-y-2 text-sm text-indigo-900/80 dark:text-indigo-200/80">
+          <h3 className="font-semibold text-indigo-900 dark:text-indigo-200">
+            1. The &apos;Dream Week&apos; framework
+          </h3>
+          <p>
+            One of the core structural ideas inside the programme is the &quot;Dream
+            Week&quot; framework. This helps to define what a high performing Labour MP office
+            should realistically be doing every week online.
+          </p>
+          <p>The benchmark includes:</p>
+          <ul className="ml-4 list-disc space-y-1">
+            <li>
+              5 organic Facebook and Instagram feed posts (suggested content; visit videos,
+              photos, long reads)
+            </li>
+            <li>2 TikToks (national policy)</li>
+            <li>1 localised selfie videos for Facebook</li>
+            <li>
+              Always on ad campaign (spending roughly £100 per month) (one Lead Generation ad
+              and best performing piece of organic content)
+            </li>
+            <li>3 Facebook group posts per week</li>
+            <li>Building local friendly Facebook spaces</li>
+            <li>Small group of amplifiers</li>
+            <li>Monthly email newsletter programme</li>
+            <li>Consistently growing email subscribers and active supporters lists</li>
+          </ul>
+        </div>
+      </div>
 
       <Section title="Paid advertising (Meta)">
         <p>Scored on recent activity, not spend — matches the National Dashboard hex map:</p>
