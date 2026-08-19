@@ -120,7 +120,7 @@ export type PeriodMetrics = {
   organic: { total: number; hasData: boolean; byPlatform: PlatformBreakdown[] };
   group: { postCount: number; hasData: boolean };
   newsletter: { sendCount: number; hasData: boolean };
-  tiktok: { points: number; hasData: boolean; isBestPostWinner: boolean };
+  tiktok: { points: number; hasData: boolean; isBestPostWinner: boolean; followerCount: number | null };
 };
 
 /**
@@ -160,8 +160,8 @@ async function buildMetricsIndex() {
       join advertisers a on a.id = ads.advertiser_id
       where a.platform = 'meta' and a.ended_at is null
     `,
-    sql<{ constituency_id: string }[]>`
-      select distinct r.constituency_id
+    sql<{ constituency_id: string; follower_count: number | null }[]>`
+      select r.constituency_id, sa.follower_count
       from social_accounts sa
       join representatives r on r.id = sa.representative_id and r.ended_at is null
       where sa.platform = 'tiktok' and sa.ended_at is null
@@ -175,6 +175,15 @@ async function buildMetricsIndex() {
   ]);
 
   const tiktokAccountConstituencyIds = new Set(tiktokAccountRows.map((r) => r.constituency_id));
+  // A rep could in principle have more than one tiktok account row —
+  // take the highest follower count seen rather than an arbitrary one.
+  const tiktokFollowersByConstituency = new Map<string, number | null>();
+  for (const row of tiktokAccountRows) {
+    const existing = tiktokFollowersByConstituency.get(row.constituency_id);
+    if (existing === undefined || (row.follower_count ?? -1) > (existing ?? -1)) {
+      tiktokFollowersByConstituency.set(row.constituency_id, row.follower_count);
+    }
+  }
   const tiktokVideosByConstituency = new Map<
     string,
     { postedAt: string; viewCount: number | null; likeCount: number | null }[]
@@ -418,6 +427,7 @@ async function buildMetricsIndex() {
         points: point.tiktok.points,
         hasData: point.tiktok.hasAccount,
         isBestPostWinner: point.tiktok.isBestPostWinner,
+        followerCount: tiktokFollowersByConstituency.get(point.constituencyId) ?? null,
       },
     });
   }
@@ -433,6 +443,7 @@ export type RankingRow = {
   previousScore: number | null;
   change: { delta: number | null; direction: "up" | "down" | "flat" | "unknown" };
   organicByPlatform: PlatformBreakdown[];
+  tiktok: { points: number; hasData: boolean; isBestPostWinner: boolean; followerCount: number | null };
 };
 
 export type RankingsResult = {
@@ -472,6 +483,7 @@ export async function getRankings(filters: {
         previousScore: null,
         change: { delta: null, direction: "unknown" as const },
         organicByPlatform: [],
+        tiktok: { points: 0, hasData: false, isBestPostWinner: false, followerCount: null },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
   }
@@ -496,14 +508,16 @@ export async function getRankings(filters: {
       const previousScore = previousPeriod
         ? (index.get(periodKey(r.constituency.id, previousPeriod.start))?.overall ?? null)
         : null;
+      const currentMetrics = index.get(periodKey(r.constituency.id, targetPeriod.start));
       return {
         constituency: r.constituency,
         rank: r.rank,
         score: r.score,
-        scoreMaxPoints: index.get(periodKey(r.constituency.id, targetPeriod.start))?.overallMaxPoints ?? FALLBACK_MAX_POINTS,
+        scoreMaxPoints: currentMetrics?.overallMaxPoints ?? FALLBACK_MAX_POINTS,
         previousScore,
         change: scoreChange(r.score, previousScore),
-        organicByPlatform: index.get(periodKey(r.constituency.id, targetPeriod.start))?.organic.byPlatform ?? [],
+        organicByPlatform: currentMetrics?.organic.byPlatform ?? [],
+        tiktok: currentMetrics?.tiktok ?? { points: 0, hasData: false, isBestPostWinner: false, followerCount: null },
       };
     });
 
@@ -517,7 +531,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
   newsletter: { sendCount: 0, hasData: false },
-  tiktok: { points: 0, hasData: false, isBestPostWinner: false },
+  tiktok: { points: 0, hasData: false, isBestPostWinner: false, followerCount: null },
 };
 
 export type ConstituencyDetail = {

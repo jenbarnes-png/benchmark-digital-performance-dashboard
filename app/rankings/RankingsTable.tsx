@@ -5,9 +5,19 @@ import Link from "next/link";
 import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
 import PlatformActivityBar from "@/app/components/PlatformActivityBar";
+import { TIKTOK_MAX_POINTS } from "@/lib/tiktokScoring";
 import type { RankingRow } from "@/lib/rankings";
 
-type SortKey = "rank" | "constituency" | "mp" | "region" | "score" | "platform" | "change";
+type SortKey =
+  | "rank"
+  | "constituency"
+  | "mp"
+  | "region"
+  | "score"
+  | "platform"
+  | "tiktokPoints"
+  | "tiktokFollowers"
+  | "change";
 type SortDir = "asc" | "desc";
 
 const DEFAULT_DIR: Record<SortKey, SortDir> = {
@@ -17,8 +27,15 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   region: "asc",
   score: "desc",
   platform: "desc",
+  tiktokPoints: "desc",
+  tiktokFollowers: "desc",
   change: "desc",
 };
+
+function formatFollowers(n: number | null): string {
+  if (n === null) return "—";
+  return n.toLocaleString();
+}
 
 function platformTotal(row: RankingRow): number {
   return row.organicByPlatform.reduce((sum, p) => (p.hasData ? sum + p.postCount : sum), 0);
@@ -80,6 +97,8 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       region: r.constituency.region,
       score: r.score ?? -1,
       platform: platformTotal(r),
+      tiktokPoints: r.tiktok.hasData ? r.tiktok.points : -1,
+      tiktokFollowers: r.tiktok.followerCount ?? -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
     withKeys.sort((a, b) => {
@@ -104,6 +123,8 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Region", "region"],
                 ["Overall score", "score"],
                 ["Platform activity", "platform"],
+                ["TikTok points", "tiktokPoints"],
+                ["TikTok followers", "tiktokFollowers"],
                 ["Change", "change"],
               ] as [string, SortKey][]
             ).map(([label, key]) => (
@@ -155,13 +176,29 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 <PlatformActivityBar byPlatform={r.organicByPlatform} maxTotal={maxPlatformTotal} />
               </td>
               <td className="px-4 py-3">
+                {r.tiktok.hasData ? (
+                  <span className="inline-flex items-center gap-1 tabular-nums">
+                    {r.tiktok.points}
+                    <span className="text-black/40 dark:text-white/40">/ {TIKTOK_MAX_POINTS}</span>
+                    {r.tiktok.isBestPostWinner && (
+                      <span title="Best-performing TikTok video nationally this week">🏆</span>
+                    )}
+                  </span>
+                ) : (
+                  <span className="text-xs text-black/40 dark:text-white/40">No data</span>
+                )}
+              </td>
+              <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
+                {formatFollowers(r.tiktok.followerCount)}
+              </td>
+              <td className="px-4 py-3">
                 <ChangeIndicator delta={r.change.delta} direction={r.change.direction} />
               </td>
             </tr>
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={9} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
