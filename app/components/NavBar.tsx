@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const navItems = [
@@ -12,9 +13,19 @@ export default function NavBar() {
   return (
     <header className="border-b border-black/10 dark:border-white/15">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-6 px-6 py-4">
-        <span className="font-semibold tracking-tight">
-          Benchmark: Digital Campaign Manager
-        </span>
+        <div className="flex items-center gap-3">
+          <Image
+            src="/project-beacon-logo.png"
+            alt="Project Beacon — Operation Second Term"
+            width={1477}
+            height={856}
+            className="h-9 w-auto"
+            priority
+          />
+          <span className="font-semibold tracking-tight">
+            Benchmark: Digital Campaign Manager
+          </span>
+        </div>
         <nav className="flex flex-wrap gap-1">
           {navItems.map((item) => (
             <Link
