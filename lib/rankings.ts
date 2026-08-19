@@ -124,7 +124,6 @@ export type PeriodMetrics = {
     points: number;
     hasData: boolean;
     isBestPostWinner: boolean;
-    followerCount: number | null;
     /** Total views across videos posted within the period — see tiktokReachFor. */
     reach: number;
   };
@@ -167,8 +166,8 @@ async function buildMetricsIndex() {
       join advertisers a on a.id = ads.advertiser_id
       where a.platform = 'meta' and a.ended_at is null
     `,
-    sql<{ constituency_id: string; follower_count: number | null }[]>`
-      select r.constituency_id, sa.follower_count
+    sql<{ constituency_id: string }[]>`
+      select distinct r.constituency_id
       from social_accounts sa
       join representatives r on r.id = sa.representative_id and r.ended_at is null
       where sa.platform = 'tiktok' and sa.ended_at is null
@@ -182,15 +181,6 @@ async function buildMetricsIndex() {
   ]);
 
   const tiktokAccountConstituencyIds = new Set(tiktokAccountRows.map((r) => r.constituency_id));
-  // A rep could in principle have more than one tiktok account row —
-  // take the highest follower count seen rather than an arbitrary one.
-  const tiktokFollowersByConstituency = new Map<string, number | null>();
-  for (const row of tiktokAccountRows) {
-    const existing = tiktokFollowersByConstituency.get(row.constituency_id);
-    if (existing === undefined || (row.follower_count ?? -1) > (existing ?? -1)) {
-      tiktokFollowersByConstituency.set(row.constituency_id, row.follower_count);
-    }
-  }
   const tiktokVideosByConstituency = new Map<
     string,
     { postedAt: string; viewCount: number | null; likeCount: number | null }[]
@@ -457,7 +447,6 @@ async function buildMetricsIndex() {
         points: point.tiktok.points,
         hasData: point.tiktok.hasAccount,
         isBestPostWinner: point.tiktok.isBestPostWinner,
-        followerCount: tiktokFollowersByConstituency.get(point.constituencyId) ?? null,
         reach: point.tiktok.reach,
       },
     });
@@ -473,8 +462,9 @@ export type RankingRow = {
   scoreMaxPoints: number;
   previousScore: number | null;
   change: { delta: number | null; direction: "up" | "down" | "flat" | "unknown" };
-  organicByPlatform: PlatformBreakdown[];
-  tiktok: { points: number; hasData: boolean; isBestPostWinner: boolean; followerCount: number | null; reach: number };
+  /** Whether an ad is running right now — the hex map's 🟢 status. */
+  adLive: boolean;
+  tiktok: { hasData: boolean; reach: number };
 };
 
 export type RankingsResult = {
@@ -513,8 +503,8 @@ export async function getRankings(filters: {
         scoreMaxPoints: FALLBACK_MAX_POINTS,
         previousScore: null,
         change: { delta: null, direction: "unknown" as const },
-        organicByPlatform: [],
-        tiktok: { points: 0, hasData: false, isBestPostWinner: false, followerCount: null, reach: 0 },
+        adLive: false,
+        tiktok: { hasData: false, reach: 0 },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
   }
@@ -547,8 +537,8 @@ export async function getRankings(filters: {
         scoreMaxPoints: currentMetrics?.overallMaxPoints ?? FALLBACK_MAX_POINTS,
         previousScore,
         change: scoreChange(r.score, previousScore),
-        organicByPlatform: currentMetrics?.organic.byPlatform ?? [],
-        tiktok: currentMetrics?.tiktok ?? { points: 0, hasData: false, isBestPostWinner: false, followerCount: null, reach: 0 },
+        adLive: currentMetrics?.adSpend.recencyStatus === "active",
+        tiktok: currentMetrics?.tiktok ?? { hasData: false, reach: 0 },
       };
     });
 
@@ -562,7 +552,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
   newsletter: { sendCount: 0, hasData: false },
-  tiktok: { points: 0, hasData: false, isBestPostWinner: false, followerCount: null, reach: 0 },
+  tiktok: { points: 0, hasData: false, isBestPostWinner: false, reach: 0 },
 };
 
 export type ConstituencyDetail = {

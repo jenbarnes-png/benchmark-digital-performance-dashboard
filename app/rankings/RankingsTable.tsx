@@ -4,21 +4,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
-import PlatformActivityBar from "@/app/components/PlatformActivityBar";
-import { TIKTOK_MAX_POINTS } from "@/lib/tiktokScoring";
 import type { RankingRow } from "@/lib/rankings";
 
-type SortKey =
-  | "rank"
-  | "constituency"
-  | "mp"
-  | "region"
-  | "score"
-  | "platform"
-  | "tiktokPoints"
-  | "tiktokFollowers"
-  | "tiktokReach"
-  | "change";
+type SortKey = "rank" | "constituency" | "mp" | "region" | "score" | "adLive" | "tiktokReach" | "change";
 type SortDir = "asc" | "desc";
 
 const DEFAULT_DIR: Record<SortKey, SortDir> = {
@@ -27,9 +15,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   mp: "asc",
   region: "asc",
   score: "desc",
-  platform: "desc",
-  tiktokPoints: "desc",
-  tiktokFollowers: "desc",
+  adLive: "desc",
   tiktokReach: "desc",
   change: "desc",
 };
@@ -37,10 +23,6 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
 function formatCount(n: number | null): string {
   if (n === null) return "—";
   return n.toLocaleString();
-}
-
-function platformTotal(row: RankingRow): number {
-  return row.organicByPlatform.reduce((sum, p) => (p.hasData ? sum + p.postCount : sum), 0);
 }
 
 function Header({
@@ -76,11 +58,6 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
-  const maxPlatformTotal = useMemo(
-    () => Math.max(1, ...rows.map((r) => platformTotal(r))),
-    [rows]
-  );
-
   function toggleSort(key: SortKey) {
     if (key === sortKey) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -98,9 +75,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       mp: r.constituency.mp_or_candidate_name ?? "",
       region: r.constituency.region,
       score: r.score ?? -1,
-      platform: platformTotal(r),
-      tiktokPoints: r.tiktok.hasData ? r.tiktok.points : -1,
-      tiktokFollowers: r.tiktok.followerCount ?? -1,
+      adLive: r.adLive ? 1 : 0,
       tiktokReach: r.tiktok.hasData ? r.tiktok.reach : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
@@ -125,9 +100,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["MP / Candidate", "mp"],
                 ["Region", "region"],
                 ["Overall score", "score"],
-                ["Platform activity", "platform"],
-                ["TikTok points", "tiktokPoints"],
-                ["TikTok followers", "tiktokFollowers"],
+                ["Ads live", "adLive"],
                 ["TikTok reach (this week)", "tiktokReach"],
                 ["Change", "change"],
               ] as [string, SortKey][]
@@ -177,23 +150,14 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 <ScoreBar points={r.score} maxPoints={r.scoreMaxPoints} />
               </td>
               <td className="px-4 py-3">
-                <PlatformActivityBar byPlatform={r.organicByPlatform} maxTotal={maxPlatformTotal} />
-              </td>
-              <td className="px-4 py-3">
-                {r.tiktok.hasData ? (
-                  <span className="inline-flex items-center gap-1 tabular-nums">
-                    {r.tiktok.points}
-                    <span className="text-black/40 dark:text-white/40">/ {TIKTOK_MAX_POINTS}</span>
-                    {r.tiktok.isBestPostWinner && (
-                      <span title="Best-performing TikTok video nationally this week">🏆</span>
-                    )}
+                {r.adLive ? (
+                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                    Yes
                   </span>
                 ) : (
-                  <span className="text-xs text-black/40 dark:text-white/40">No data</span>
+                  <span className="text-black/50 dark:text-white/50">No</span>
                 )}
-              </td>
-              <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
-                {formatCount(r.tiktok.followerCount)}
               </td>
               <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
                 {r.tiktok.hasData ? formatCount(r.tiktok.reach) : "—"}
@@ -205,7 +169,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={10} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={8} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
