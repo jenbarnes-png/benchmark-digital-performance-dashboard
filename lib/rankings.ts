@@ -126,6 +126,8 @@ export type PeriodMetrics = {
     isBestPostWinner: boolean;
     /** Total views across videos posted within the period — see tiktokReachFor. */
     reach: number;
+    /** Posted at all in the 30 days before this period ended — the loosest of the four stacking recency tiers. */
+    postedInLast30Days: boolean;
   };
 };
 
@@ -326,7 +328,13 @@ async function buildMetricsIndex() {
     organic: PeriodMetrics["organic"];
     group: PeriodMetrics["group"];
     newsletter: PeriodMetrics["newsletter"];
-    tiktok: { hasAccount: boolean; points: number; isBestPostWinner: boolean; reach: number };
+    tiktok: {
+      hasAccount: boolean;
+      points: number;
+      isBestPostWinner: boolean;
+      reach: number;
+      postedInLast30Days: boolean;
+    };
   };
   const rawPoints: RawPoint[] = [];
 
@@ -361,7 +369,12 @@ async function buildMetricsIndex() {
 
       const tiktokWinnerId = bestPostWinnerFor({ start, end });
       const tiktokIsBestPostWinner = tiktokWinnerId === constituencyId;
-      const tiktokPoints = tiktokPointsAsOf(constituencyId, periodEndDate) + (tiktokIsBestPostWinner ? 1 : 0);
+      const tiktokRecencyPoints = tiktokPointsAsOf(constituencyId, periodEndDate);
+      const tiktokPoints = tiktokRecencyPoints + (tiktokIsBestPostWinner ? 1 : 0);
+      // recencyPoints' loosest tier (1 point) is exactly "posted within
+      // the last 30 days as of this period", so >=1 reads that off
+      // directly rather than re-deriving it separately.
+      const tiktokPostedInLast30Days = tiktokRecencyPoints >= 1;
 
       rawPoints.push({
         constituencyId,
@@ -387,6 +400,7 @@ async function buildMetricsIndex() {
           points: tiktokPoints,
           isBestPostWinner: tiktokIsBestPostWinner,
           reach: tiktokReachFor(constituencyId, { start, end }),
+          postedInLast30Days: tiktokPostedInLast30Days,
         },
       });
     }
@@ -448,6 +462,7 @@ async function buildMetricsIndex() {
         hasData: point.tiktok.hasAccount,
         isBestPostWinner: point.tiktok.isBestPostWinner,
         reach: point.tiktok.reach,
+        postedInLast30Days: point.tiktok.postedInLast30Days,
       },
     });
   }
@@ -464,7 +479,7 @@ export type RankingRow = {
   change: { delta: number | null; direction: "up" | "down" | "flat" | "unknown" };
   /** Whether an ad is running right now — the hex map's 🟢 status. */
   adLive: boolean;
-  tiktok: { hasData: boolean; reach: number };
+  tiktok: { hasData: boolean; reach: number; postedInLast30Days: boolean };
 };
 
 export type RankingsResult = {
@@ -504,7 +519,7 @@ export async function getRankings(filters: {
         previousScore: null,
         change: { delta: null, direction: "unknown" as const },
         adLive: false,
-        tiktok: { hasData: false, reach: 0 },
+        tiktok: { hasData: false, reach: 0, postedInLast30Days: false },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
   }
@@ -538,7 +553,7 @@ export async function getRankings(filters: {
         previousScore,
         change: scoreChange(r.score, previousScore),
         adLive: currentMetrics?.adSpend.recencyStatus === "active",
-        tiktok: currentMetrics?.tiktok ?? { hasData: false, reach: 0 },
+        tiktok: currentMetrics?.tiktok ?? { hasData: false, reach: 0, postedInLast30Days: false },
       };
     });
 
@@ -552,7 +567,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
   newsletter: { sendCount: 0, hasData: false },
-  tiktok: { points: 0, hasData: false, isBestPostWinner: false, reach: 0 },
+  tiktok: { points: 0, hasData: false, isBestPostWinner: false, reach: 0, postedInLast30Days: false },
 };
 
 export type ConstituencyDetail = {

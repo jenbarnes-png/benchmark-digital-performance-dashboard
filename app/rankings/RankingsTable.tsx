@@ -6,7 +6,16 @@ import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
 import type { RankingRow } from "@/lib/rankings";
 
-type SortKey = "rank" | "constituency" | "mp" | "region" | "score" | "adLive" | "tiktokReach" | "change";
+type SortKey =
+  | "rank"
+  | "constituency"
+  | "mp"
+  | "region"
+  | "score"
+  | "adLive"
+  | "tiktokRecent"
+  | "tiktokReach"
+  | "change";
 type SortDir = "asc" | "desc";
 
 const DEFAULT_DIR: Record<SortKey, SortDir> = {
@@ -16,6 +25,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   region: "asc",
   score: "desc",
   adLive: "desc",
+  tiktokRecent: "desc",
   tiktokReach: "desc",
   change: "desc",
 };
@@ -76,6 +86,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       region: r.constituency.region,
       score: r.score ?? -1,
       adLive: r.adLive ? 1 : 0,
+      tiktokRecent: r.tiktok.hasData ? (r.tiktok.postedInLast30Days ? 1 : 0) : -1,
       tiktokReach: r.tiktok.hasData ? r.tiktok.reach : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
@@ -101,6 +112,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Region", "region"],
                 ["Overall score", "score"],
                 ["Ads live", "adLive"],
+                ["Posted TikTok (last 30 days)", "tiktokRecent"],
                 ["TikTok reach (this week)", "tiktokReach"],
                 ["Change", "change"],
               ] as [string, SortKey][]
@@ -159,6 +171,18 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                   <span className="text-black/50 dark:text-white/50">No</span>
                 )}
               </td>
+              <td className="px-4 py-3">
+                {!r.tiktok.hasData ? (
+                  <span className="text-black/40 dark:text-white/40">—</span>
+                ) : r.tiktok.postedInLast30Days ? (
+                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                    Yes
+                  </span>
+                ) : (
+                  <span className="text-black/50 dark:text-white/50">No</span>
+                )}
+              </td>
               <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
                 {r.tiktok.hasData ? formatCount(r.tiktok.reach) : "—"}
               </td>
@@ -169,7 +193,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={9} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
