@@ -8,8 +8,14 @@ const sections = [
     available: true,
   },
   {
+    href: "/admin/organic-posts",
+    label: "Organic posting (Facebook & Instagram)",
+    description: "Log weekly post counts by hand — feeds each constituency's platform breakdown.",
+    available: true,
+  },
+  {
     href: null,
-    label: "Ad spend, posting & newsletter data",
+    label: "Ad spend & newsletter data",
     description: "Manual entry for data that can't be pulled in automatically.",
     available: false,
   },
