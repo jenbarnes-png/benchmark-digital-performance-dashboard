@@ -149,7 +149,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
               </td>
               <td className="px-4 py-3 text-black/70 dark:text-white/70">{r.constituency.region}</td>
               <td className="px-4 py-3">
-                <ScoreBar score={r.score} />
+                <ScoreBar points={r.score} maxPoints={r.scoreMaxPoints} />
               </td>
               <td className="px-4 py-3">
                 <PlatformActivityBar byPlatform={r.organicByPlatform} maxTotal={maxPlatformTotal} />

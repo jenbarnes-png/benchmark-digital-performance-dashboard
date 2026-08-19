@@ -11,9 +11,10 @@ export default function ChangeIndicator({
     return <span className="text-xs text-black/40 dark:text-white/40">No prior data</span>;
   }
   if (direction === "flat") {
-    return <span className="text-sm font-medium text-black/50 dark:text-white/50">— 0</span>;
+    return <span className="text-sm font-medium text-black/50 dark:text-white/50">— 0 pts</span>;
   }
   const isUp = direction === "up";
+  const abs = Math.abs(delta ?? 0);
   return (
     <span
       className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${
@@ -21,7 +22,7 @@ export default function ChangeIndicator({
       }`}
     >
       <span aria-hidden>{isUp ? "▲" : "▼"}</span>
-      {Math.abs(delta ?? 0)}
+      {abs} {abs === 1 ? "pt" : "pts"}
     </span>
   );
 }

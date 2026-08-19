@@ -1,7 +1,19 @@
 import { sql, type Constituency } from "./db";
-import { scoreMetric, overallScore, scoreChange, rankByScore, type MetricScore } from "./scoring";
-import { classifyAdRecency, scoreForAdRecency, type AdRecencyStatus } from "./adRecency";
-import { recencyPoints, weeklyBestPostWinner, scoreForTiktok, type TiktokVideoLite } from "./tiktokScoring";
+import { scoreMetric, overallScore, totalPossiblePoints, scoreChange, rankByScore, type MetricScore } from "./scoring";
+import { classifyAdRecency, scoreForAdRecency, AD_RECENCY_POINTS, type AdRecencyStatus } from "./adRecency";
+import {
+  recencyPoints,
+  weeklyBestPostWinner,
+  scoreForTiktok,
+  TIKTOK_MAX_POINTS,
+  type TiktokVideoLite,
+} from "./tiktokScoring";
+
+// Used only when literally nothing has been tracked yet (periods.length
+// === 0 below) — the real total is always computed from the actual
+// metrics array via totalPossiblePoints, this is just its value before
+// any metrics exist to sum.
+const FALLBACK_MAX_POINTS = AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS;
 
 export type Period = { start: string; end: string };
 
@@ -96,6 +108,8 @@ export type PeriodMetrics = {
   period: string;
   periodEnd: string;
   overall: number | null;
+  /** Total points possible for `overall`, e.g. 7 (2 ad + 5 TikTok) today. */
+  overallMaxPoints: number;
   adSpend: {
     spent: number;
     target: number;
@@ -395,6 +409,7 @@ async function buildMetricsIndex() {
       period: point.period,
       periodEnd: periodEnd[point.period],
       overall: overallScore(metrics),
+      overallMaxPoints: totalPossiblePoints(metrics),
       adSpend: point.adSpend,
       organic: point.organic,
       group: point.group,
@@ -414,6 +429,7 @@ export type RankingRow = {
   constituency: Constituency;
   rank: number;
   score: number | null;
+  scoreMaxPoints: number;
   previousScore: number | null;
   change: { delta: number | null; direction: "up" | "down" | "flat" | "unknown" };
   organicByPlatform: PlatformBreakdown[];
@@ -452,6 +468,7 @@ export async function getRankings(filters: {
         constituency: c,
         rank: 1,
         score: null,
+        scoreMaxPoints: FALLBACK_MAX_POINTS,
         previousScore: null,
         change: { delta: null, direction: "unknown" as const },
         organicByPlatform: [],
@@ -483,6 +500,7 @@ export async function getRankings(filters: {
         constituency: r.constituency,
         rank: r.rank,
         score: r.score,
+        scoreMaxPoints: index.get(periodKey(r.constituency.id, targetPeriod.start))?.overallMaxPoints ?? FALLBACK_MAX_POINTS,
         previousScore,
         change: scoreChange(r.score, previousScore),
         organicByPlatform: index.get(periodKey(r.constituency.id, targetPeriod.start))?.organic.byPlatform ?? [],
@@ -494,6 +512,7 @@ export async function getRankings(filters: {
 
 const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   overall: null,
+  overallMaxPoints: FALLBACK_MAX_POINTS,
   adSpend: { spent: 0, target: 0, hasData: false, byPlatform: [], recencyStatus: "no_advertiser" },
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
@@ -510,6 +529,7 @@ export type ConstituencyDetail = {
   regionalRank: number;
   regionalCount: number;
   score: number | null;
+  scoreMaxPoints: number;
   change: { delta: number | null; direction: "up" | "down" | "flat" | "unknown" };
   current: PeriodMetrics;
   history: PeriodMetrics[]; // oldest to newest
@@ -545,6 +565,7 @@ export async function getConstituencyDetail(
       regionalRank: regional.rank,
       regionalCount: constituencies.filter((c) => c.region === constituency.region).length,
       score: null,
+      scoreMaxPoints: FALLBACK_MAX_POINTS,
       change: { delta: null, direction: "unknown" },
       current: { period: "", periodEnd: "", ...EMPTY_METRICS },
       history: [],
@@ -601,6 +622,7 @@ export async function getConstituencyDetail(
     regionalRank: regional.rank,
     regionalCount: constituencies.filter((c) => c.region === constituency.region).length,
     score: current.overall,
+    scoreMaxPoints: current.overallMaxPoints,
     change: scoreChange(current.overall, previousScore),
     current,
     history,

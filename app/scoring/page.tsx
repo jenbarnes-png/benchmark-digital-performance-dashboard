@@ -43,13 +43,18 @@ export default function ScoringPage() {
 
       <Section title="Overall score">
         <p>
-          Each constituency gets an overall score out of 100 for each week: real points earned,
-          divided by the total points possible so far —{" "}
+          Each constituency&apos;s overall score is shown as real points earned out of the total
+          possible so far —{" "}
           <strong>
             {AD_RECENCY_POINTS.active} for paid advertising + {TIKTOK_MAX_POINTS} for TikTok ={" "}
             {AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS} points total
           </strong>
-          . Organic posting, group activity and newsletter sends are shown on their own cards but
+          . It&apos;s shown as raw points (e.g. &quot;3 / 7&quot;), not a percentage — turning a
+          7-point system into a number out of 100 makes it look like a school grade, which invites
+          comparisons it can&apos;t really support yet.
+        </p>
+        <p>
+          Organic posting, group activity and newsletter sends are shown on their own cards but
           don&apos;t count toward this score yet — they&apos;re scored relative to other
           constituencies rather than on a fixed points scale, so they&apos;ll join the total once
           they have one. A constituency missing a point-scored metric (no advertiser resolved, no

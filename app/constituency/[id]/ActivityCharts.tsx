@@ -28,6 +28,10 @@ export default function ActivityCharts({ history }: { history: PeriodMetrics[] }
     label: weekLabel(h.period, h.periodEnd),
     score: h.overall,
   }));
+  // Overall score is shown as raw points (e.g. "3 / 7"), not a 0-100
+  // percentage — the axis needs to match, and stays correct
+  // automatically as the real points total changes over time.
+  const overallMaxPoints = Math.max(1, ...history.map((h) => h.overallMaxPoints));
 
   const organicData = history.map((h) => {
     const row: Record<string, number | string> = { label: weekLabel(h.period, h.periodEnd) };
@@ -49,13 +53,13 @@ export default function ActivityCharts({ history }: { history: PeriodMetrics[] }
     <div className="space-y-8">
       <div>
         <h3 className="mb-3 text-sm font-semibold text-black/70 dark:text-white/70">
-          Overall score over time
+          Overall score over time (points, out of {overallMaxPoints})
         </h3>
         <ResponsiveContainer width="100%" height={180}>
           <LineChart data={scoreData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-black/10 dark:stroke-white/10" />
             <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
+            <YAxis domain={[0, overallMaxPoints]} allowDecimals={false} tick={{ fontSize: 11 }} />
             <Tooltip
               formatter={(value) => (value === null || value === undefined ? "No data" : value)}
               contentStyle={{ fontSize: 12 }}

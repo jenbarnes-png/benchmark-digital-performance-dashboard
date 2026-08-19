@@ -73,7 +73,7 @@ export default async function ConstituencyDetailPage({
         <div className="rounded-lg border border-black/10 p-4 dark:border-white/15">
           <p className="text-sm font-medium text-black/70 dark:text-white/70">Overall score</p>
           <div className="mt-2">
-            <ScoreBar score={detail.score} />
+            <ScoreBar points={detail.score} maxPoints={detail.scoreMaxPoints} />
           </div>
         </div>
         <div className="rounded-lg border border-black/10 p-4 dark:border-white/15">
