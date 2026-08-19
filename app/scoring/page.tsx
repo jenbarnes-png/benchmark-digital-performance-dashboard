@@ -1,4 +1,5 @@
 import { RECENT_WINDOW_DAYS, AD_RECENCY_POINTS } from "@/lib/adRecency";
+import { TIKTOK_MAX_POINTS } from "@/lib/tiktokScoring";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -61,12 +62,41 @@ export default function ScoringPage() {
         </p>
       </Section>
 
-      <Section title="Organic posting, Facebook group activity, newsletter sends">
+      <Section title="Organic posting (Facebook, Instagram, YouTube), Facebook group activity, newsletter sends">
         <p>
           Each scored relative to the best-performing pilot constituency that week: the highest
           raw count that week scores 100, everyone else is scaled proportionally against it. This
           is also a placeholder — it compares seats only to each other, not to a fixed benchmark or
           target, so it will get fairer as the pilot grows and better benchmarks emerge.
+        </p>
+      </Section>
+
+      <Section title="TikTok">
+        <p className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+          Defined, not live yet — no data source is connected
+        </p>
+        <p>
+          TikTok has no compliant automated public-data source at present (confirmed against
+          TikTok&apos;s own current API documentation and the third-party data-provider market as of
+          August 2026) — so this metric will run on manually entered data rather than an automatic
+          sync. Once that data starts flowing, scoring will work like this, out of{" "}
+          {TIKTOK_MAX_POINTS} points:
+        </p>
+        <ul className="ml-4 list-disc space-y-1">
+          <li>Posted within the last 48 hours — 1 point</li>
+          <li>Posted within the last 7 days — 1 point</li>
+          <li>Posted within the last 14 days — 1 point</li>
+          <li>Posted within the last 30 days — 1 point</li>
+          <li>
+            Had the single best-performing post nationally that week (by views, ties broken by
+            likes) — 1 point
+          </li>
+        </ul>
+        <p>
+          The first four stack rather than replace each other — post yesterday and you get all
+          four, not just one. The fifth is a genuine competition: only one constituency holds it
+          per week, and it moves to whoever posted the best-performing video that week, not
+          whoever held it last.
         </p>
       </Section>
 
