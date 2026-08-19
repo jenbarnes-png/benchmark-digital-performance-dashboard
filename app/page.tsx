@@ -4,6 +4,11 @@ import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
 import HexMap from "./components/HexMap";
 import TiktokVideoCard from "./components/TiktokVideoCard";
 
+// Without this, Next prerenders the homepage once at build/deploy time
+// and serves that frozen snapshot forever — the hex map and TikTok
+// section would stop reflecting reality the moment data changes.
+export const dynamic = "force-dynamic";
+
 export default async function NationalDashboardPage() {
   const [statuses, topTiktokVideos] = await Promise.all([
     getConstituencyAdStatuses(),
