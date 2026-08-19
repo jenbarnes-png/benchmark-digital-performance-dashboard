@@ -120,7 +120,14 @@ export type PeriodMetrics = {
   organic: { total: number; hasData: boolean; byPlatform: PlatformBreakdown[] };
   group: { postCount: number; hasData: boolean };
   newsletter: { sendCount: number; hasData: boolean };
-  tiktok: { points: number; hasData: boolean; isBestPostWinner: boolean; followerCount: number | null };
+  tiktok: {
+    points: number;
+    hasData: boolean;
+    isBestPostWinner: boolean;
+    followerCount: number | null;
+    /** Total views across videos posted within the period — see tiktokReachFor. */
+    reach: number;
+  };
 };
 
 /**
@@ -207,29 +214,51 @@ async function buildMetricsIndex() {
     return recencyPoints(mostRecent, referenceDate);
   }
 
-  // Computed once per period (not per constituency) and cached — the
-  // winner is a single national comparison, not a per-seat lookup.
-  const bestPostWinnerByPeriod = new Map<string, string | null>();
-  function bestPostWinnerFor(period: Period): string | null {
-    const cached = bestPostWinnerByPeriod.get(period.start);
-    if (cached !== undefined) return cached;
+  // Computed once per period (not per constituency) and cached, grouped
+  // by constituency so both the national best-post winner and each
+  // seat's own weekly reach can be read off the same pass.
+  const videosByPeriodCache = new Map<string, Map<string, TiktokVideoLite[]>>();
+  function videosInPeriodByConstituency(period: Period): Map<string, TiktokVideoLite[]> {
+    const cached = videosByPeriodCache.get(period.start);
+    if (cached) return cached;
 
     const rangeStart = new Date(period.start);
     const rangeEnd = new Date(period.end);
     rangeEnd.setUTCHours(23, 59, 59, 999);
 
-    const videosInPeriod: TiktokVideoLite[] = [];
+    const result = new Map<string, TiktokVideoLite[]>();
     for (const [constituencyId, videos] of tiktokVideosByConstituency) {
       for (const v of videos) {
         const postedAt = new Date(v.postedAt);
         if (postedAt >= rangeStart && postedAt <= rangeEnd) {
-          videosInPeriod.push({ constituencyId, postedAt: v.postedAt, viewCount: v.viewCount, likeCount: v.likeCount });
+          if (!result.has(constituencyId)) result.set(constituencyId, []);
+          result
+            .get(constituencyId)!
+            .push({ constituencyId, postedAt: v.postedAt, viewCount: v.viewCount, likeCount: v.likeCount });
         }
       }
     }
+    videosByPeriodCache.set(period.start, result);
+    return result;
+  }
+
+  const bestPostWinnerByPeriod = new Map<string, string | null>();
+  function bestPostWinnerFor(period: Period): string | null {
+    const cached = bestPostWinnerByPeriod.get(period.start);
+    if (cached !== undefined) return cached;
+
+    const videosInPeriod = Array.from(videosInPeriodByConstituency(period).values()).flat();
     const winner = weeklyBestPostWinner(videosInPeriod);
     bestPostWinnerByPeriod.set(period.start, winner);
     return winner;
+  }
+
+  /** Total views across videos posted within the period — our proxy for
+   * "reach", since TikTok's own reach figures aren't exposed to us; only
+   * view counts are. */
+  function tiktokReachFor(constituencyId: string, period: Period): number {
+    const videos = videosInPeriodByConstituency(period).get(constituencyId) ?? [];
+    return videos.reduce((sum, v) => sum + (v.viewCount ?? 0), 0);
   }
 
   const advertiserConstituencyIds = new Set(advertiserRows.map((r) => r.constituency_id));
@@ -307,7 +336,7 @@ async function buildMetricsIndex() {
     organic: PeriodMetrics["organic"];
     group: PeriodMetrics["group"];
     newsletter: PeriodMetrics["newsletter"];
-    tiktok: { hasAccount: boolean; points: number; isBestPostWinner: boolean };
+    tiktok: { hasAccount: boolean; points: number; isBestPostWinner: boolean; reach: number };
   };
   const rawPoints: RawPoint[] = [];
 
@@ -367,6 +396,7 @@ async function buildMetricsIndex() {
           hasAccount: tiktokAccountConstituencyIds.has(constituencyId),
           points: tiktokPoints,
           isBestPostWinner: tiktokIsBestPostWinner,
+          reach: tiktokReachFor(constituencyId, { start, end }),
         },
       });
     }
@@ -428,6 +458,7 @@ async function buildMetricsIndex() {
         hasData: point.tiktok.hasAccount,
         isBestPostWinner: point.tiktok.isBestPostWinner,
         followerCount: tiktokFollowersByConstituency.get(point.constituencyId) ?? null,
+        reach: point.tiktok.reach,
       },
     });
   }
@@ -443,7 +474,7 @@ export type RankingRow = {
   previousScore: number | null;
   change: { delta: number | null; direction: "up" | "down" | "flat" | "unknown" };
   organicByPlatform: PlatformBreakdown[];
-  tiktok: { points: number; hasData: boolean; isBestPostWinner: boolean; followerCount: number | null };
+  tiktok: { points: number; hasData: boolean; isBestPostWinner: boolean; followerCount: number | null; reach: number };
 };
 
 export type RankingsResult = {
@@ -483,7 +514,7 @@ export async function getRankings(filters: {
         previousScore: null,
         change: { delta: null, direction: "unknown" as const },
         organicByPlatform: [],
-        tiktok: { points: 0, hasData: false, isBestPostWinner: false, followerCount: null },
+        tiktok: { points: 0, hasData: false, isBestPostWinner: false, followerCount: null, reach: 0 },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
   }
@@ -517,7 +548,7 @@ export async function getRankings(filters: {
         previousScore,
         change: scoreChange(r.score, previousScore),
         organicByPlatform: currentMetrics?.organic.byPlatform ?? [],
-        tiktok: currentMetrics?.tiktok ?? { points: 0, hasData: false, isBestPostWinner: false, followerCount: null },
+        tiktok: currentMetrics?.tiktok ?? { points: 0, hasData: false, isBestPostWinner: false, followerCount: null, reach: 0 },
       };
     });
 
@@ -531,7 +562,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
   newsletter: { sendCount: 0, hasData: false },
-  tiktok: { points: 0, hasData: false, isBestPostWinner: false, followerCount: null },
+  tiktok: { points: 0, hasData: false, isBestPostWinner: false, followerCount: null, reach: 0 },
 };
 
 export type ConstituencyDetail = {

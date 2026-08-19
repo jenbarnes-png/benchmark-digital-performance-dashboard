@@ -17,6 +17,7 @@ type SortKey =
   | "platform"
   | "tiktokPoints"
   | "tiktokFollowers"
+  | "tiktokReach"
   | "change";
 type SortDir = "asc" | "desc";
 
@@ -29,10 +30,11 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   platform: "desc",
   tiktokPoints: "desc",
   tiktokFollowers: "desc",
+  tiktokReach: "desc",
   change: "desc",
 };
 
-function formatFollowers(n: number | null): string {
+function formatCount(n: number | null): string {
   if (n === null) return "—";
   return n.toLocaleString();
 }
@@ -99,6 +101,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       platform: platformTotal(r),
       tiktokPoints: r.tiktok.hasData ? r.tiktok.points : -1,
       tiktokFollowers: r.tiktok.followerCount ?? -1,
+      tiktokReach: r.tiktok.hasData ? r.tiktok.reach : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
     withKeys.sort((a, b) => {
@@ -125,6 +128,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Platform activity", "platform"],
                 ["TikTok points", "tiktokPoints"],
                 ["TikTok followers", "tiktokFollowers"],
+                ["TikTok reach (this week)", "tiktokReach"],
                 ["Change", "change"],
               ] as [string, SortKey][]
             ).map(([label, key]) => (
@@ -189,7 +193,10 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 )}
               </td>
               <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
-                {formatFollowers(r.tiktok.followerCount)}
+                {formatCount(r.tiktok.followerCount)}
+              </td>
+              <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
+                {r.tiktok.hasData ? formatCount(r.tiktok.reach) : "—"}
               </td>
               <td className="px-4 py-3">
                 <ChangeIndicator delta={r.change.delta} direction={r.change.direction} />
@@ -198,7 +205,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={9} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={10} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
