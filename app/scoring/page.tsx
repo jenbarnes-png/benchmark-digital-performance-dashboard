@@ -38,16 +38,8 @@ export default function ScoringPage() {
             Check this dashboard to see how you&apos;re progressing, how close you are to
             reaching the Dream Week, and how you rank compared to other offices.
           </p>
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-5 dark:border-indigo-900 dark:bg-indigo-950/40">
-        <h2 className="text-lg font-semibold tracking-tight text-indigo-900 dark:text-indigo-200">
-          What does success look like?
-        </h2>
-        <div className="mt-2 space-y-2 text-sm text-indigo-900/80 dark:text-indigo-200/80">
-          <h3 className="font-semibold text-indigo-900 dark:text-indigo-200">
-            1. The &apos;Dream Week&apos; framework
+          <h3 className="pt-2 font-semibold text-indigo-900 dark:text-indigo-200">
+            What does success look like?
           </h3>
           <p>
             One of the core structural ideas inside the programme is the &quot;Dream
