@@ -34,7 +34,14 @@ export const AD_RECENCY_POINTS: Record<Exclude<AdRecencyStatus, "no_advertiser">
   stale: 0,
 };
 
-export function scoreForAdRecency(status: AdRecencyStatus): { hasData: boolean; score: number | null } {
-  if (status === "no_advertiser") return { hasData: false, score: null };
-  return { hasData: true, score: (AD_RECENCY_POINTS[status] / 2) * 100 };
+export function scoreForAdRecency(status: AdRecencyStatus): {
+  hasData: boolean;
+  score: number | null;
+  maxPoints: number;
+} {
+  // maxPoints is fixed at the metric's max (2) regardless of hasData —
+  // see MetricScore.maxPoints in lib/scoring.ts for why.
+  const maxPoints = AD_RECENCY_POINTS.active;
+  if (status === "no_advertiser") return { hasData: false, score: null, maxPoints };
+  return { hasData: true, score: (AD_RECENCY_POINTS[status] / 2) * 100, maxPoints };
 }

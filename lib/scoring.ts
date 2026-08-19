@@ -19,6 +19,18 @@ export type MetricScore = {
   key: string;
   hasData: boolean;
   score: number | null; // null when hasData is false
+  /**
+   * This metric's weight in the overall score, expressed as its share of
+   * a real points total (today: 2 for paid advertising + 5 for TikTok =
+   * 7 possible). Fixed per metric — it doesn't depend on hasData, so a
+   * constituency with no advertiser resolved yet still has those 2
+   * points counted against it in the total, not excluded. 0 for metrics
+   * that don't have a defined points scale yet (organic posting, group
+   * activity, newsletter are peer-relative percentages, not points) —
+   * they still show on their own card, just don't count toward the
+   * overall score until they get a real points definition.
+   */
+  maxPoints: number;
 };
 
 function scoreAgainstTarget(value: number, target: number): number {
@@ -32,34 +44,43 @@ function scoreAgainstPeers(value: number, peerValues: number[]): number {
   return Math.max(0, Math.min(100, (value / max) * 100));
 }
 
+/** Peer-relative metrics (organic posting, group activity, newsletter) have no points scale of their own yet, so maxPoints is always 0 — see MetricScore. */
 export function scoreMetric(input: MetricInput): MetricScore {
   if (!input.hasData) {
-    return { key: input.key, hasData: false, score: null };
+    return { key: input.key, hasData: false, score: null, maxPoints: 0 };
   }
   const score =
     input.target !== undefined
       ? scoreAgainstTarget(input.value, input.target)
       : scoreAgainstPeers(input.value, input.peerValues ?? []);
-  return { key: input.key, hasData: true, score };
+  return { key: input.key, hasData: true, score, maxPoints: 0 };
 }
 
 /**
- * Overall score: real points earned across every metric, divided by the
- * total possible across ALL of them — always, not just the ones with
- * data. A seat doing well on just one metric no longer scores like a
- * strong all-rounder; a metric with no data pulls the score down, same
- * as zero activity would. The one exception: a seat with literally no
- * data anywhere shows as "No data" (null) rather than a misleadingly
- * exact 0, since we can't yet tell "confirmed inactive" from "not
- * tracked".
+ * Overall score: real points earned, divided by the total points
+ * possible — today, 2 for paid advertising + 5 for TikTok = 7, since
+ * those are the only metrics with an actual points scale defined so
+ * far. Metrics with no points scale yet (maxPoints: 0) don't affect the
+ * total either way. A constituency missing a point-scored metric (no
+ * advertiser resolved, no TikTok account matched) earns 0 of that
+ * metric's points rather than being excluded — same as zero activity
+ * would score. The one exception: a seat with no data on ANY
+ * point-scored metric shows as "No data" (null) rather than a
+ * misleadingly exact 0, since we can't yet tell "confirmed inactive"
+ * from "not tracked".
  */
 export function overallScore(metrics: MetricScore[]): number | null {
-  const withData = metrics.filter(
+  const pointScored = metrics.filter((m) => m.maxPoints > 0);
+  const totalMaxPoints = pointScored.reduce((sum, m) => sum + m.maxPoints, 0);
+  if (totalMaxPoints === 0) return null;
+
+  const withData = pointScored.filter(
     (m): m is MetricScore & { score: number } => m.hasData && m.score !== null
   );
   if (withData.length === 0) return null;
-  const sum = withData.reduce((total, m) => total + m.score, 0);
-  return Math.round(sum / metrics.length);
+
+  const earnedPoints = withData.reduce((sum, m) => sum + (m.score / 100) * m.maxPoints, 0);
+  return Math.round((earnedPoints / totalMaxPoints) * 100);
 }
 
 export type ChangeDirection = "up" | "down" | "flat" | "unknown";

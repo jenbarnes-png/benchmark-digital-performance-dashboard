@@ -43,14 +43,22 @@ export default function ScoringPage() {
 
       <Section title="Overall score">
         <p>
-          Each constituency gets an overall score out of 100 for each week: real points earned
-          across every metric below (paid advertising, TikTok, organic posting, group activity,
-          newsletter), divided by the total points possible across <em>all</em> of them — always,
-          not just the ones with data that week. A seat doing well on just one metric no longer
-          scores like a strong all-rounder; a metric with no data pulls the score down, the same as
-          zero activity on that metric would. The one exception: a seat with no data anywhere shows
-          as &quot;No data&quot; rather than a misleadingly exact 0, since we can&apos;t yet tell
-          &quot;confirmed inactive&quot; from &quot;not tracked yet&quot;.
+          Each constituency gets an overall score out of 100 for each week: real points earned,
+          divided by the total points possible so far —{" "}
+          <strong>
+            {AD_RECENCY_POINTS.active} for paid advertising + {TIKTOK_MAX_POINTS} for TikTok ={" "}
+            {AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS} points total
+          </strong>
+          . Organic posting, group activity and newsletter sends are shown on their own cards but
+          don&apos;t count toward this score yet — they&apos;re scored relative to other
+          constituencies rather than on a fixed points scale, so they&apos;ll join the total once
+          they have one. A constituency missing a point-scored metric (no advertiser resolved, no
+          TikTok account matched) earns 0 of that metric&apos;s points rather than being excluded —
+          same as zero activity would score, so a seat doing well on just one metric doesn&apos;t
+          look like a strong all-rounder. The one exception: a seat with no data on either
+          point-scored metric shows as &quot;No data&quot; rather than a misleadingly exact 0,
+          since we can&apos;t yet tell &quot;confirmed inactive&quot; from &quot;not tracked
+          yet&quot;.
         </p>
       </Section>
 

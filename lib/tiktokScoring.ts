@@ -63,12 +63,14 @@ export function scoreForTiktokPoints(points: number): number {
 }
 
 /** hasData-aware wrapper, same shape as adRecency's scoreForAdRecency — a
- * constituency with no matched TikTok account has no basis for a score at
- * all, so it's excluded from the overall average rather than dragged down. */
+ * constituency with no matched TikTok account earns 0 of these 5 points
+ * rather than being excluded from the total (see lib/scoring.ts). */
 export function scoreForTiktok(params: { hasAccount: boolean; points: number }): {
   hasData: boolean;
   score: number | null;
+  maxPoints: number;
 } {
-  if (!params.hasAccount) return { hasData: false, score: null };
-  return { hasData: true, score: scoreForTiktokPoints(params.points) };
+  const maxPoints = TIKTOK_MAX_POINTS;
+  if (!params.hasAccount) return { hasData: false, score: null, maxPoints };
+  return { hasData: true, score: scoreForTiktokPoints(params.points), maxPoints };
 }
