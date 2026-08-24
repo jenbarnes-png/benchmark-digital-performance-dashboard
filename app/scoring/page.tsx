@@ -25,13 +25,13 @@ const ROWS: { metric: string; points: number; source: "automatic" | "manual"; de
     metric: "Paid advertising (Meta)",
     points: AD_RECENCY_POINTS.active,
     source: "automatic",
-    detail: "🟢 An ad running right now = 2. 🔴 None running = 0. Matches the hex map.",
+    detail: "🟢 An ad running right now = 2. 🔴 None running = 0.",
   },
   {
     metric: "Facebook & Instagram",
     points: CHANNEL_MAX_POINTS,
     source: "automatic",
-    detail: "1pt for a Reel in the last 7 days, 1pt for posting anything at all — not one point per post.",
+    detail: "1pt for a Reel in the last 7 days, 1pt for posting anything at all. Not one point per post.",
   },
   {
     metric: "TikTok",
@@ -70,7 +70,7 @@ const ROWS: { metric: string; points: number; source: "automatic" | "manual"; de
         <a href="/admin/subscribers" className="underline hover:text-black dark:hover:text-white">
           Subscriber counts
         </a>
-        . Not live for anyone yet — needs two consecutive approved months to compare.
+        . Needs two consecutive approved months to compare.
       </>
     ),
   },
@@ -82,7 +82,7 @@ export default function ScoringPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">How scoring works</h1>
         <p className="mt-2 text-black/70 dark:text-white/70">
-          Living document — this is always the source of truth for how the numbers on Rankings and
+          This living document is always the source of truth for how the numbers on Rankings and
           Constituency Detail are calculated. Overall score is out of {TOTAL_POINTS} points.
         </p>
       </div>
@@ -92,7 +92,7 @@ export default function ScoringPage() {
           The Dream Week
         </h2>
         <p className="mt-2 text-sm text-indigo-900/80 dark:text-indigo-200/80">
-          The gold standard for local digital campaigning — what a high-performing Labour MP
+          The gold standard for local digital campaigning: what a high-performing Labour MP
           office should realistically be doing every week online. The benchmark:
         </p>
         <ul className="ml-4 mt-2 list-disc space-y-1 text-sm text-indigo-900/80 dark:text-indigo-200/80">
@@ -142,18 +142,9 @@ export default function ScoringPage() {
         </div>
         <p className="mt-2 text-xs text-black/50 dark:text-white/50">
           No data resolved yet for a metric (no advertiser matched, no TikTok account, no approved
-          manual entry) counts as 0 of its points rather than being excluded — except when a seat
-          has no data on any point-scored metric, which shows &quot;No data&quot; instead of a
-          misleading 0.
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-black/10 p-5 dark:border-white/15">
-        <h2 className="text-lg font-semibold tracking-tight">Rank &amp; change</h2>
-        <p className="mt-2 text-sm text-black/70 dark:text-white/70">
-          Rank is the overall score sorted highest to lowest, ties sharing a rank. Change is this
-          week&apos;s score minus last week&apos;s, or &quot;unavailable&quot; with no prior week
-          to compare.
+          manual entry) counts as 0 of its points rather than being excluded. The exception is a
+          seat with no data on any point-scored metric, which shows &quot;No data&quot; instead of
+          a misleading 0.
         </p>
       </div>
     </div>
