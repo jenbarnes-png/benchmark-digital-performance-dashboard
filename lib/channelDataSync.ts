@@ -94,57 +94,100 @@ export async function syncChannelDataFromSheet(): Promise<ChannelDataSyncSummary
   // those days, so the UI can tell "not tracked" apart from "tracked,
   // posted nothing" instead of quietly treating both as a confirmed
   // zero.
-  let dailyRowsUpserted = 0;
+  //
+  // Built as one batched upsert instead of one query per row/platform
+  // (previously ~2,900 sequential round trips for 53 days × 28 MPs ×
+  // 2 platforms) — that was the reason the automated /api/cron/sync
+  // route was timing out even at Vercel's 60s Hobby-plan max.
+  type DailyRow = {
+    representative_id: string;
+    platform: "facebook" | "instagram";
+    date: string;
+    post_count: number;
+    reel_count: number;
+    video_count: number | null;
+    reach: number | null;
+    top_post_url: string | null;
+    top_post_text: string | null;
+    top_post_reach: number | null;
+    top_post_engagement: number | null;
+    source: "automatic";
+  };
+
+  const dailyRows: DailyRow[] = [];
   for (const row of channelData) {
     const repId = repIdBySheetName.get(row.MP);
     if (!repId) continue;
 
     if (row["FB posts"]?.trim()) {
-      await sql`
-        insert into social_activity_daily (
-          representative_id, platform, date, post_count, reel_count, video_count, reach,
-          top_post_url, top_post_text, top_post_reach, top_post_engagement, source
-        ) values (
-          ${repId}, 'facebook', ${row.Date},
-          ${num(row["FB posts"])}, ${num(row["FB Reels"])}, ${num(row["FB Videos"])},
-          ${numOrNull(row["FB Reach"])}, ${row["FB Top URL"] || null}, ${row["FB Top Text"] || null},
-          ${numOrNull(row["FB Top Reach"])}, ${numOrNull(row["FB Top Eng"])}, 'automatic'
-        )
-        on conflict (representative_id, platform, date) do update set
-          post_count = excluded.post_count,
-          reel_count = excluded.reel_count,
-          video_count = excluded.video_count,
-          reach = excluded.reach,
-          top_post_url = excluded.top_post_url,
-          top_post_text = excluded.top_post_text,
-          top_post_reach = excluded.top_post_reach,
-          top_post_engagement = excluded.top_post_engagement
-      `;
-      dailyRowsUpserted++;
+      dailyRows.push({
+        representative_id: repId,
+        platform: "facebook",
+        date: row.Date,
+        post_count: num(row["FB posts"]),
+        reel_count: num(row["FB Reels"]),
+        video_count: num(row["FB Videos"]),
+        reach: numOrNull(row["FB Reach"]),
+        top_post_url: row["FB Top URL"] || null,
+        top_post_text: row["FB Top Text"] || null,
+        top_post_reach: numOrNull(row["FB Top Reach"]),
+        top_post_engagement: numOrNull(row["FB Top Eng"]),
+        source: "automatic",
+      });
     }
 
     if (row["IG posts"]?.trim()) {
-      await sql`
-        insert into social_activity_daily (
-          representative_id, platform, date, post_count, reel_count, video_count, reach,
-          top_post_url, top_post_text, top_post_reach, top_post_engagement, source
-        ) values (
-          ${repId}, 'instagram', ${row.Date},
-          ${num(row["IG posts"])}, ${num(row["IG Reels"])}, ${null},
-          ${numOrNull(row["IG Reach"])}, ${row["IG Top URL"] || null}, ${row["IG Top Text"] || null},
-          ${numOrNull(row["IG Top Reach"])}, ${numOrNull(row["IG Top Eng"])}, 'automatic'
-        )
-        on conflict (representative_id, platform, date) do update set
-          post_count = excluded.post_count,
-          reel_count = excluded.reel_count,
-          reach = excluded.reach,
-          top_post_url = excluded.top_post_url,
-          top_post_text = excluded.top_post_text,
-          top_post_reach = excluded.top_post_reach,
-          top_post_engagement = excluded.top_post_engagement
-      `;
-      dailyRowsUpserted++;
+      dailyRows.push({
+        representative_id: repId,
+        platform: "instagram",
+        date: row.Date,
+        post_count: num(row["IG posts"]),
+        reel_count: num(row["IG Reels"]),
+        video_count: null,
+        reach: numOrNull(row["IG Reach"]),
+        top_post_url: row["IG Top URL"] || null,
+        top_post_text: row["IG Top Text"] || null,
+        top_post_reach: numOrNull(row["IG Top Reach"]),
+        top_post_engagement: numOrNull(row["IG Top Eng"]),
+        source: "automatic",
+      });
     }
+  }
+
+  const DAILY_ROW_COLUMNS = [
+    "representative_id",
+    "platform",
+    "date",
+    "post_count",
+    "reel_count",
+    "video_count",
+    "reach",
+    "top_post_url",
+    "top_post_text",
+    "top_post_reach",
+    "top_post_engagement",
+    "source",
+  ] as const;
+
+  // Comfortably under Postgres's 65535-parameter-per-query limit
+  // (batch size × 12 columns).
+  const BATCH_SIZE = 1000;
+  let dailyRowsUpserted = 0;
+  for (let i = 0; i < dailyRows.length; i += BATCH_SIZE) {
+    const batch = dailyRows.slice(i, i + BATCH_SIZE);
+    await sql`
+      insert into social_activity_daily ${sql(batch, ...DAILY_ROW_COLUMNS)}
+      on conflict (representative_id, platform, date) do update set
+        post_count = excluded.post_count,
+        reel_count = excluded.reel_count,
+        video_count = excluded.video_count,
+        reach = excluded.reach,
+        top_post_url = excluded.top_post_url,
+        top_post_text = excluded.top_post_text,
+        top_post_reach = excluded.top_post_reach,
+        top_post_engagement = excluded.top_post_engagement
+    `;
+    dailyRowsUpserted += batch.length;
   }
 
   let newsletterEventsUpserted = 0;
