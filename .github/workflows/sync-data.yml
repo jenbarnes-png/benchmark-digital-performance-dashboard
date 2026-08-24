@@ -1,0 +1,27 @@
+name: Sync live data from Hani's warehouse
+
+# Vercel's own Cron (see vercel.json) only runs once a day on the free
+# Hobby plan, so this is the actual "every few hours" driver — it just
+# calls the same secured API route Vercel's cron does. Vercel's daily
+# run stays in place as a backup in case this workflow is ever
+# disabled or GitHub Actions has an outage.
+on:
+  schedule:
+    - cron: "0 */4 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the sync endpoint
+        run: |
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://digital-performance-dashboard-seven.vercel.app/api/cron/sync")
+          echo "HTTP status: $status"
+          cat /tmp/response.json
+          if [ "$status" -ne 200 ]; then
+            echo "Sync endpoint returned $status"
+            exit 1
+          fi

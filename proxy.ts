@@ -25,5 +25,9 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // /api/cron is excluded — it's called by an automated scheduler (see
+  // .github/workflows/sync-data.yml and vercel.json), which can't
+  // supply the Basic Auth popup credentials. It has its own separate
+  // CRON_SECRET check instead (see app/api/cron/sync/route.ts).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/cron).*)"],
 };
