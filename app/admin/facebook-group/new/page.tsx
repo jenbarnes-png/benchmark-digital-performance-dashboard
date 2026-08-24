@@ -2,6 +2,11 @@ import { listConstituencies } from "@/lib/db";
 import FacebookGroupForm from "../FacebookGroupForm";
 import { submitFacebookGroupAction } from "../actions";
 
+// Fetches the constituency list live — must render per-request, not be
+// frozen at build time (a new constituency added after deploy would
+// otherwise never show up in this dropdown until the next deploy).
+export const dynamic = "force-dynamic";
+
 function mondayOnOrBefore(date: Date): string {
   const d = new Date(date);
   const day = d.getUTCDay();

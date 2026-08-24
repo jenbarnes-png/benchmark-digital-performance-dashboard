@@ -9,6 +9,9 @@ const STATUS_STYLE: Record<string, string> = {
   rejected: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
 };
 
+// DB-backed pending-approval queue — must render per-request.
+export const dynamic = "force-dynamic";
+
 export default async function FacebookGroupPage() {
   const entries = await listFacebookGroupEntries();
 

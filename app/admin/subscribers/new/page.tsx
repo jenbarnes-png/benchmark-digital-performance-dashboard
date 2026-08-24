@@ -2,6 +2,9 @@ import { listConstituencies } from "@/lib/db";
 import SubscriberForm from "../SubscriberForm";
 import { submitSubscriberCountAction } from "../actions";
 
+// Fetches the constituency list live — must render per-request.
+export const dynamic = "force-dynamic";
+
 function currentMonthStart(): string {
   const now = new Date();
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}-01`;

@@ -2,6 +2,9 @@ import Link from "next/link";
 import { listConstituencies } from "@/lib/db";
 import { deleteConstituencyAction } from "./actions";
 
+// DB-backed listing — must render per-request, not be frozen at build time.
+export const dynamic = "force-dynamic";
+
 export default async function ConstituenciesPage() {
   const constituencies = await listConstituencies();
 
