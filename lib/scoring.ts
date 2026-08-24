@@ -23,15 +23,15 @@ export type MetricScore = {
    * This metric's weight in the overall score, expressed as its share of
    * a real points total (today: 2 for paid advertising + 5 for TikTok +
    * 2 for Facebook/Instagram + 2 for newsletter + 2 for Facebook Group
-   * posts = 13 possible). Fixed per metric — it doesn't depend on
-   * hasData, so a constituency with no advertiser resolved yet still
-   * has those 2 points counted against it in the total, not excluded. 0
-   * for the older manually-reported metrics that don't have a points
-   * scale (organic posting, the manually-reported "newsletter" — peer-
-   * relative percentages, not points, distinct from the automated
-   * "newsletterActivity" metric which does have a points scale; same
-   * for "group" vs "groupPoints") — they still show on their own card,
-   * just don't count toward the overall score.
+   * posts + 1 for subscriber growth = 14 possible). Fixed per metric —
+   * it doesn't depend on hasData, so a constituency with no advertiser
+   * resolved yet still has those 2 points counted against it in the
+   * total, not excluded. 0 for the older manually-reported metrics that
+   * don't have a points scale (organic posting, the manually-reported
+   * "newsletter" — peer-relative percentages, not points, distinct from
+   * the automated "newsletterActivity" metric which does have a points
+   * scale; same for "group" vs "groupPoints") — they still show on
+   * their own card, just don't count toward the overall score.
    */
   maxPoints: number;
 };
@@ -62,11 +62,12 @@ export function scoreMetric(input: MetricInput): MetricScore {
 /**
  * Overall score: real points earned — today, out of 2 for paid
  * advertising + 5 for TikTok + 2 for Facebook/Instagram + 2 for
- * newsletter + 2 for Facebook Group posts = 13 possible, since those
- * are the only metrics with an actual points scale defined so far (see
- * totalPossiblePoints). Shown as the raw point count (e.g. "3"), not a
- * percentage — a rescaled-to-100 number invites reading it like a
- * grade, which a 13-point system isn't. A constituency missing a
+ * newsletter + 2 for Facebook Group posts + 1 for subscriber growth =
+ * 14 possible, since those are the only metrics with an actual points
+ * scale defined so far (see totalPossiblePoints). Shown as the raw
+ * point count (e.g. "3"), not a percentage — a rescaled-to-100 number
+ * invites reading it like a grade, which a 14-point system isn't. A
+ * constituency missing a
  * point-scored metric (no advertiser resolved, no TikTok account
  * matched) earns 0 of that metric's points rather than being excluded —
  * same as zero activity would score. The one exception: a seat with no
@@ -85,7 +86,7 @@ export function overallScore(metrics: MetricScore[]): number | null {
   return Math.round(earnedPoints);
 }
 
-/** Total points possible across every metric with a defined points scale — the denominator to show alongside overallScore (e.g. "3 of 13 points"). */
+/** Total points possible across every metric with a defined points scale — the denominator to show alongside overallScore (e.g. "3 of 14 points"). */
 export function totalPossiblePoints(metrics: MetricScore[]): number {
   return metrics.reduce((sum, m) => sum + m.maxPoints, 0);
 }

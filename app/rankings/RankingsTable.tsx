@@ -21,6 +21,7 @@ type SortKey =
   | "newsletterSent"
   | "newsletterMonth"
   | "groupPosts"
+  | "subscriberGrowth"
   | "change";
 type SortDir = "asc" | "desc";
 
@@ -39,6 +40,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   newsletterSent: "desc",
   newsletterMonth: "desc",
   groupPosts: "desc",
+  subscriberGrowth: "desc",
   change: "desc",
 };
 
@@ -118,6 +120,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       newsletterSent: r.newsletterActivity.hasData ? (r.newsletterActivity.sentInLast30Days ? 1 : 0) : -1,
       newsletterMonth: r.newsletterActivity.hasData ? (r.newsletterActivity.sentThisCalendarMonth ? 1 : 0) : -1,
       groupPosts: r.group.hasData ? r.group.postCount : -1,
+      subscriberGrowth: r.subscriberGrowth.hasData ? (r.subscriberGrowth.grewByAtLeastTarget ? 1 : 0) : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
     withKeys.sort((a, b) => {
@@ -150,6 +153,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Newsletter (last 30 days)", "newsletterSent"],
                 ["Newsletter sent this month", "newsletterMonth"],
                 ["Facebook group posts (manual)", "groupPosts"],
+                ["Subscribers +20 this month", "subscriberGrowth"],
                 ["Change", "change"],
               ] as [string, SortKey][]
             ).map(([label, key]) => (
@@ -228,13 +232,16 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 {r.group.hasData ? formatCount(r.group.postCount) : "—"}
               </td>
               <td className="px-4 py-3">
+                <YesNoCell hasData={r.subscriberGrowth.hasData} value={r.subscriberGrowth.grewByAtLeastTarget} />
+              </td>
+              <td className="px-4 py-3">
                 <ChangeIndicator delta={r.change.delta} direction={r.change.direction} />
               </td>
             </tr>
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={14} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={15} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
