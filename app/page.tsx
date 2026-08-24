@@ -1,4 +1,12 @@
-import { getAdHexStatuses, getTiktokHexStatuses, getOverallHexStatuses } from "@/lib/hexmapData";
+import {
+  getAdHexStatuses,
+  getTiktokHexStatuses,
+  getOverallHexStatuses,
+  getFacebookHexStatuses,
+  getInstagramHexStatuses,
+  getGroupHexStatuses,
+  getEmailHexStatuses,
+} from "@/lib/hexmapData";
 import { getTopTiktokVideosNational } from "@/lib/tiktokVideos";
 import { getTopChannelPostsNational } from "@/lib/channelActivity";
 import { getHexLayout } from "@/lib/hexmap";
@@ -12,10 +20,24 @@ import ChannelPostCard from "./components/ChannelPostCard";
 export const dynamic = "force-dynamic";
 
 export default async function NationalDashboardPage() {
-  const [adStatuses, tiktokStatuses, overallStatuses, topTiktokVideos, topChannelPosts] = await Promise.all([
+  const [
+    adStatuses,
+    tiktokStatuses,
+    overallStatuses,
+    facebookStatuses,
+    instagramStatuses,
+    groupStatuses,
+    emailStatuses,
+    topTiktokVideos,
+    topChannelPosts,
+  ] = await Promise.all([
     getAdHexStatuses(),
     getTiktokHexStatuses(),
     getOverallHexStatuses(),
+    getFacebookHexStatuses(),
+    getInstagramHexStatuses(),
+    getGroupHexStatuses(),
+    getEmailHexStatuses(),
     getTopTiktokVideosNational(3),
     getTopChannelPostsNational(3),
   ]);
@@ -41,6 +63,10 @@ export default async function NationalDashboardPage() {
         overall={Array.from(overallStatuses.entries())}
         ads={Array.from(adStatuses.entries())}
         tiktok={Array.from(tiktokStatuses.entries())}
+        facebook={Array.from(facebookStatuses.entries())}
+        instagram={Array.from(instagramStatuses.entries())}
+        groups={Array.from(groupStatuses.entries())}
+        email={Array.from(emailStatuses.entries())}
       />
 
       <div>

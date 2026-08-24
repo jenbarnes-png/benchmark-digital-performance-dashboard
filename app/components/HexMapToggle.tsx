@@ -5,12 +5,16 @@ import HexMap, { type HexLegendItem } from "./HexMap";
 import type { ConstituencyHexStatus } from "@/lib/hexTypes";
 import type { HexPosition } from "@/lib/hexGeometry";
 
-type Mode = "overall" | "ads" | "tiktok";
+type Mode = "overall" | "ads" | "tiktok" | "facebook" | "instagram" | "groups" | "email";
 
 const MODE_LABEL: Record<Mode, string> = {
   overall: "Overall score",
   ads: "Ads",
   tiktok: "TikTok",
+  facebook: "Facebook",
+  instagram: "Instagram",
+  groups: "Groups",
+  email: "Email",
 };
 
 const LEGEND: Record<Mode, HexLegendItem[]> = {
@@ -31,6 +35,28 @@ const LEGEND: Record<Mode, HexLegendItem[]> = {
     { tier: "stale", label: "No recent activity" },
     { tier: "not_tracked", label: "Not yet tracked" },
   ],
+  facebook: [
+    { tier: "active", label: "Posted in the last 7 days" },
+    { tier: "recent", label: "Posted in the last 30 days" },
+    { tier: "stale", label: "Tracked, nothing recent" },
+    { tier: "not_tracked", label: "Not yet tracked" },
+  ],
+  instagram: [
+    { tier: "active", label: "Posted in the last 7 days" },
+    { tier: "recent", label: "Posted in the last 30 days" },
+    { tier: "stale", label: "Tracked, nothing recent" },
+    { tier: "not_tracked", label: "Not yet tracked" },
+  ],
+  groups: [
+    { tier: "active", label: "Posted this week" },
+    { tier: "stale", label: "Reported, but 0 this week" },
+    { tier: "not_tracked", label: "Not yet reported" },
+  ],
+  email: [
+    { tier: "active", label: "Sent since the 1st of this month" },
+    { tier: "stale", label: "None sent this month" },
+    { tier: "not_tracked", label: "Not yet tracked" },
+  ],
 };
 
 export default function HexMapToggle({
@@ -40,6 +66,10 @@ export default function HexMapToggle({
   overall,
   ads,
   tiktok,
+  facebook,
+  instagram,
+  groups,
+  email,
 }: {
   positions: HexPosition[];
   hexSize: number;
@@ -47,6 +77,10 @@ export default function HexMapToggle({
   overall: [string, ConstituencyHexStatus][];
   ads: [string, ConstituencyHexStatus][];
   tiktok: [string, ConstituencyHexStatus][];
+  facebook: [string, ConstituencyHexStatus][];
+  instagram: [string, ConstituencyHexStatus][];
+  groups: [string, ConstituencyHexStatus][];
+  email: [string, ConstituencyHexStatus][];
 }) {
   const [mode, setMode] = useState<Mode>("overall");
 
@@ -55,13 +89,17 @@ export default function HexMapToggle({
       overall: new Map(overall),
       ads: new Map(ads),
       tiktok: new Map(tiktok),
+      facebook: new Map(facebook),
+      instagram: new Map(instagram),
+      groups: new Map(groups),
+      email: new Map(email),
     }),
-    [overall, ads, tiktok]
+    [overall, ads, tiktok, facebook, instagram, groups, email]
   );
 
   return (
     <div>
-      <div className="mb-4 inline-flex rounded-lg border border-black/10 p-1 dark:border-white/15">
+      <div className="mb-4 inline-flex flex-wrap gap-1 rounded-lg border border-black/10 p-1 dark:border-white/15">
         {(Object.keys(MODE_LABEL) as Mode[]).map((m) => (
           <button
             key={m}

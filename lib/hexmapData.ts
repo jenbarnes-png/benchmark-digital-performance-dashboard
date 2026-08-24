@@ -112,6 +112,139 @@ export async function getTiktokHexStatuses(): Promise<Map<string, ConstituencyHe
   return map;
 }
 
+/** Facebook or Instagram organic posting as of right now — green within 7 days, amber within 30, red beyond that or tracked-but-nothing-posted. "Not tracked" means Hani's warehouse has no data at all for this MP on this platform, not a confirmed zero — see the blank-cell handling in lib/channelDataSync.ts. */
+async function getChannelPlatformHexStatuses(platform: "facebook" | "instagram"): Promise<Map<string, ConstituencyHexStatus>> {
+  const rows = await sql<
+    { constituency_id: string; name: string; has_data: boolean; last_posted_at: string | null }[]
+  >`
+    select
+      c.id as constituency_id,
+      c.name,
+      bool_or(sad.id is not null) as has_data,
+      max(sad.date) filter (where sad.post_count > 0)::text as last_posted_at
+    from constituencies c
+    left join representatives r on r.constituency_id = c.id and r.ended_at is null
+    left join social_activity_daily sad on sad.representative_id = r.id and sad.platform = ${platform}
+    group by c.id, c.name
+  `;
+
+  const now = new Date();
+  const map = new Map<string, ConstituencyHexStatus>();
+  for (const row of rows) {
+    if (!row.has_data) {
+      map.set(row.name, {
+        constituencyId: row.constituency_id,
+        name: row.name,
+        tier: "not_tracked",
+        detail: "Not yet tracked",
+      });
+      continue;
+    }
+
+    const daysAgo = row.last_posted_at
+      ? (now.getTime() - new Date(row.last_posted_at).getTime()) / (1000 * 60 * 60 * 24)
+      : Infinity;
+
+    let tier: HexTier;
+    let detail: string;
+    if (daysAgo <= 7) {
+      tier = "active";
+      detail = "Posted within the last 7 days";
+    } else if (daysAgo <= 30) {
+      tier = "recent";
+      detail = "Posted within the last 30 days";
+    } else {
+      tier = "stale";
+      detail = row.last_posted_at ? "No posts in the last 30 days" : "Tracked, but nothing posted yet";
+    }
+    map.set(row.name, { constituencyId: row.constituency_id, name: row.name, tier, detail });
+  }
+  return map;
+}
+
+export function getFacebookHexStatuses(): Promise<Map<string, ConstituencyHexStatus>> {
+  return getChannelPlatformHexStatuses("facebook");
+}
+
+export function getInstagramHexStatuses(): Promise<Map<string, ConstituencyHexStatus>> {
+  return getChannelPlatformHexStatuses("instagram");
+}
+
+/** Manually-reported (and approved) Facebook Group posts, most recent approved week. */
+export async function getGroupHexStatuses(): Promise<Map<string, ConstituencyHexStatus>> {
+  const rows = await sql<
+    { constituency_id: string; name: string; post_count: number | null; period_start: string | null }[]
+  >`
+    select c.id as constituency_id, c.name, latest.post_count, latest.period_start::text
+    from constituencies c
+    left join lateral (
+      select fga.post_count, fga.period_start
+      from facebook_group_activity fga
+      where fga.constituency_id = c.id and fga.status = 'approved'
+      order by fga.period_start desc
+      limit 1
+    ) latest on true
+  `;
+
+  const map = new Map<string, ConstituencyHexStatus>();
+  for (const row of rows) {
+    if (!row.period_start) {
+      map.set(row.name, {
+        constituencyId: row.constituency_id,
+        name: row.name,
+        tier: "not_tracked",
+        detail: "Not yet reported",
+      });
+      continue;
+    }
+    const postCount = row.post_count ?? 0;
+    const tier: HexTier = postCount > 0 ? "active" : "stale";
+    const detail =
+      postCount > 0
+        ? `${postCount} group post${postCount === 1 ? "" : "s"} reported this week`
+        : "0 group posts reported this week";
+    map.set(row.name, { constituencyId: row.constituency_id, name: row.name, tier, detail });
+  }
+  return map;
+}
+
+/** Newsletter sends — green if sent since the 1st of this calendar month, matching the Rankings column of the same name. */
+export async function getEmailHexStatuses(): Promise<Map<string, ConstituencyHexStatus>> {
+  const rows = await sql<
+    { constituency_id: string; name: string; has_data: boolean; last_sent_at: string | null }[]
+  >`
+    select
+      c.id as constituency_id,
+      c.name,
+      bool_or(ne.id is not null) as has_data,
+      max(ne.received_at)::text as last_sent_at
+    from constituencies c
+    left join representatives r on r.constituency_id = c.id and r.ended_at is null
+    left join newsletter_events ne on ne.representative_id = r.id
+    group by c.id, c.name
+  `;
+
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const map = new Map<string, ConstituencyHexStatus>();
+  for (const row of rows) {
+    if (!row.has_data) {
+      map.set(row.name, {
+        constituencyId: row.constituency_id,
+        name: row.name,
+        tier: "not_tracked",
+        detail: "Not yet tracked",
+      });
+      continue;
+    }
+    const sentThisMonth = row.last_sent_at !== null && new Date(row.last_sent_at) >= monthStart;
+    const tier: HexTier = sentThisMonth ? "active" : "stale";
+    const detail = sentThisMonth ? "Sent since the 1st of this month" : "None sent this calendar month";
+    map.set(row.name, { constituencyId: row.constituency_id, name: row.name, tier, detail });
+  }
+  return map;
+}
+
 /** Overall score for the most recent period — same tiering as ScoreBar's colour thresholds. */
 export async function getOverallHexStatuses(): Promise<Map<string, ConstituencyHexStatus>> {
   const { rows } = await getRankings({});
