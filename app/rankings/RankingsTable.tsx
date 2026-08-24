@@ -13,11 +13,13 @@ type SortKey =
   | "region"
   | "score"
   | "adLive"
+  | "tiktokRecent7"
   | "tiktokRecent"
   | "tiktokReach"
   | "channelReel"
   | "channelPosted"
   | "newsletterSent"
+  | "groupPosts"
   | "change";
 type SortDir = "asc" | "desc";
 
@@ -28,17 +30,31 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   region: "asc",
   score: "desc",
   adLive: "desc",
+  tiktokRecent7: "desc",
   tiktokRecent: "desc",
   tiktokReach: "desc",
   channelReel: "desc",
   channelPosted: "desc",
   newsletterSent: "desc",
+  groupPosts: "desc",
   change: "desc",
 };
 
 function formatCount(n: number | null): string {
   if (n === null) return "—";
   return n.toLocaleString();
+}
+
+function YesNoCell({ hasData, value }: { hasData: boolean; value: boolean }) {
+  if (!hasData) return <span className="text-black/40 dark:text-white/40">—</span>;
+  return value ? (
+    <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+      <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+      Yes
+    </span>
+  ) : (
+    <span className="text-black/50 dark:text-white/50">No</span>
+  );
 }
 
 function Header({
@@ -92,11 +108,13 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       region: r.constituency.region,
       score: r.score ?? -1,
       adLive: r.adLive ? 1 : 0,
+      tiktokRecent7: r.tiktok.hasData ? (r.tiktok.postedInLast7Days ? 1 : 0) : -1,
       tiktokRecent: r.tiktok.hasData ? (r.tiktok.postedInLast30Days ? 1 : 0) : -1,
       tiktokReach: r.tiktok.hasData ? r.tiktok.reach : -1,
       channelReel: r.channel.hasData ? (r.channel.reelIn7Days ? 1 : 0) : -1,
       channelPosted: r.channel.hasData ? (r.channel.postedIn7Days ? 1 : 0) : -1,
       newsletterSent: r.newsletterActivity.hasData ? (r.newsletterActivity.sentInLast30Days ? 1 : 0) : -1,
+      groupPosts: r.group.hasData ? r.group.postCount : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
     withKeys.sort((a, b) => {
@@ -121,11 +139,13 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Region", "region"],
                 ["Overall score", "score"],
                 ["Ads live", "adLive"],
+                ["Posted TikTok (last 7 days)", "tiktokRecent7"],
                 ["Posted TikTok (last 30 days)", "tiktokRecent"],
                 ["TikTok reach (last 30 days)", "tiktokReach"],
                 ["Reel (last 7 days)", "channelReel"],
                 ["Posted FB/IG (last 7 days)", "channelPosted"],
                 ["Newsletter (last 30 days)", "newsletterSent"],
+                ["Facebook group posts (manual)", "groupPosts"],
                 ["Change", "change"],
               ] as [string, SortKey][]
             ).map(([label, key]) => (
@@ -174,65 +194,28 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 <ScoreBar points={r.score} maxPoints={r.scoreMaxPoints} />
               </td>
               <td className="px-4 py-3">
-                {r.adLive ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-                    Yes
-                  </span>
-                ) : (
-                  <span className="text-black/50 dark:text-white/50">No</span>
-                )}
+                <YesNoCell hasData={true} value={r.adLive} />
               </td>
               <td className="px-4 py-3">
-                {!r.tiktok.hasData ? (
-                  <span className="text-black/40 dark:text-white/40">—</span>
-                ) : r.tiktok.postedInLast30Days ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-                    Yes
-                  </span>
-                ) : (
-                  <span className="text-black/50 dark:text-white/50">No</span>
-                )}
+                <YesNoCell hasData={r.tiktok.hasData} value={r.tiktok.postedInLast7Days} />
+              </td>
+              <td className="px-4 py-3">
+                <YesNoCell hasData={r.tiktok.hasData} value={r.tiktok.postedInLast30Days} />
               </td>
               <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
                 {r.tiktok.hasData ? formatCount(r.tiktok.reach) : "—"}
               </td>
               <td className="px-4 py-3">
-                {!r.channel.hasData ? (
-                  <span className="text-black/40 dark:text-white/40">—</span>
-                ) : r.channel.reelIn7Days ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-                    Yes
-                  </span>
-                ) : (
-                  <span className="text-black/50 dark:text-white/50">No</span>
-                )}
+                <YesNoCell hasData={r.channel.hasData} value={r.channel.reelIn7Days} />
               </td>
               <td className="px-4 py-3">
-                {!r.channel.hasData ? (
-                  <span className="text-black/40 dark:text-white/40">—</span>
-                ) : r.channel.postedIn7Days ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-                    Yes
-                  </span>
-                ) : (
-                  <span className="text-black/50 dark:text-white/50">No</span>
-                )}
+                <YesNoCell hasData={r.channel.hasData} value={r.channel.postedIn7Days} />
               </td>
               <td className="px-4 py-3">
-                {!r.newsletterActivity.hasData ? (
-                  <span className="text-black/40 dark:text-white/40">—</span>
-                ) : r.newsletterActivity.sentInLast30Days ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-                    Yes
-                  </span>
-                ) : (
-                  <span className="text-black/50 dark:text-white/50">No</span>
-                )}
+                <YesNoCell hasData={r.newsletterActivity.hasData} value={r.newsletterActivity.sentInLast30Days} />
+              </td>
+              <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
+                {r.group.hasData ? formatCount(r.group.postCount) : "—"}
               </td>
               <td className="px-4 py-3">
                 <ChangeIndicator delta={r.change.delta} direction={r.change.direction} />
@@ -241,7 +224,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={12} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={13} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>

@@ -54,18 +54,81 @@ function periodKey(constituencyId: string, period: string) {
   return `${constituencyId}|${period}`;
 }
 
+function mondayOnOrBefore(date: Date): Date {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay(); // 0 = Sunday
+  const diff = day === 0 ? 6 : day - 1;
+  d.setUTCDate(d.getUTCDate() - diff);
+  return d;
+}
+function toDateStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Weekly periods to show on Rankings. Most of our metrics (ad recency,
+ * TikTok, Facebook/Instagram, newsletter) are computed "as of" a
+ * reference date directly from timestamped raw data (ads, tiktok_videos,
+ * social_activity_daily, newsletter_events) — so they already
+ * reconstruct any past week correctly with zero extra storage, as long
+ * as a period for that week exists here. So rather than a scheduled
+ * snapshot job, we generate every Monday-Sunday week from the earliest
+ * tracked activity through the current week, merged with whatever weeks
+ * the older manually-entered tables (organic_posts, ad_spend,
+ * facebook_group_activity, newsletter_sends) have rows for — those
+ * still only show real data for weeks someone actually logged.
+ */
 export async function listPeriods(): Promise<Period[]> {
-  const rows = await sql<{ period_start: string; period_end: string }[]>`
-    select distinct period_start::text, period_end::text from (
-      select period_start, period_end from organic_posts
-      union
-      select period_start, period_end from ad_spend
-      union select period_start, period_end from facebook_group_activity
-      union select period_start, period_end from newsletter_sends
-    ) p
-    order by period_start desc
-  `;
-  return rows.map((r) => ({ start: r.period_start, end: r.period_end }));
+  const [manualRows, [earliestRow]] = await Promise.all([
+    sql<{ period_start: string; period_end: string }[]>`
+      select distinct period_start::text, period_end::text from (
+        select period_start, period_end from organic_posts
+        union
+        select period_start, period_end from ad_spend
+        union select period_start, period_end from facebook_group_activity
+        union select period_start, period_end from newsletter_sends
+      ) p
+    `,
+    // Deliberately excludes ads.ad_delivery_start_time — Meta's Ad
+    // Library reports when an ad itself first started running, which
+    // for a long-running "always-on" ad can be years before we ever
+    // started tracking it, and isn't a signal of when OUR tracking
+    // began. TikTok/channel/newsletter dates are all real content
+    // posted after tracking started, so they're a much saner floor.
+    sql<{ earliest: string | null }[]>`
+      select least(
+        (select min(posted_at)::date from tiktok_videos),
+        (select min(date) from social_activity_daily),
+        (select min(received_at)::date from newsletter_events)
+      )::text as earliest
+    `,
+  ]);
+
+  const manualByStart = new Map(manualRows.map((r) => [r.period_start, r.period_end]));
+  const weekStarts = new Set<string>(manualRows.map((r) => r.period_start));
+
+  if (earliestRow?.earliest) {
+    const currentWeekMonday = mondayOnOrBefore(new Date());
+    // Belt-and-braces cap, independent of the query above, in case any
+    // future data source has its own long-ago outlier timestamp — 26
+    // weeks comfortably covers this pilot's real history.
+    const maxLookback = new Date(currentWeekMonday.getTime() - 26 * 7 * 24 * 60 * 60 * 1000);
+    const earliestMonday = mondayOnOrBefore(new Date(earliestRow.earliest));
+    let cursor = earliestMonday.getTime() < maxLookback.getTime() ? maxLookback : earliestMonday;
+    while (cursor.getTime() <= currentWeekMonday.getTime()) {
+      weekStarts.add(toDateStr(cursor));
+      cursor = new Date(cursor.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
+  }
+
+  const periods = Array.from(weekStarts)
+    .map((start) => {
+      const end = manualByStart.get(start) ?? toDateStr(new Date(new Date(start).getTime() + 6 * 24 * 60 * 60 * 1000));
+      return { start, end };
+    })
+    .sort((a, b) => (a.start < b.start ? 1 : -1));
+
+  return periods;
 }
 
 export async function listRegions(): Promise<string[]> {
@@ -131,6 +194,8 @@ export type PeriodMetrics = {
     reach: number;
     /** Posted at all in the 30 days before this period ended — the loosest of the four stacking recency tiers. */
     postedInLast30Days: boolean;
+    /** Posted at all in the 7 days before this period ended. */
+    postedInLast7Days: boolean;
   };
   channel: {
     points: number;
@@ -433,6 +498,7 @@ async function buildMetricsIndex() {
       isBestPostWinner: boolean;
       reach: number;
       postedInLast30Days: boolean;
+      postedInLast7Days: boolean;
     };
     channel: {
       hasAccount: boolean;
@@ -481,8 +547,11 @@ async function buildMetricsIndex() {
       const tiktokPoints = tiktokRecencyPoints + (tiktokIsBestPostWinner ? 1 : 0);
       // recencyPoints' loosest tier (1 point) is exactly "posted within
       // the last 30 days as of this period", so >=1 reads that off
-      // directly rather than re-deriving it separately.
+      // directly rather than re-deriving it separately. The tiers stack,
+      // so >=3 (the 7-day and everything tighter than it) is exactly
+      // "posted within the last 7 days".
       const tiktokPostedInLast30Days = tiktokRecencyPoints >= 1;
+      const tiktokPostedInLast7Days = tiktokRecencyPoints >= 3;
 
       const channelInfo = channelActivityAsOf(constituencyId, periodEndDate);
       const newsletterActivityInfo = newsletterActivityAsOf(constituencyId, periodEndDate);
@@ -512,6 +581,7 @@ async function buildMetricsIndex() {
           isBestPostWinner: tiktokIsBestPostWinner,
           reach: tiktokReachFor(constituencyId, periodEndDate),
           postedInLast30Days: tiktokPostedInLast30Days,
+          postedInLast7Days: tiktokPostedInLast7Days,
         },
         channel: {
           hasAccount: channelAccountConstituencyIds.has(constituencyId),
@@ -598,6 +668,7 @@ async function buildMetricsIndex() {
         isBestPostWinner: point.tiktok.isBestPostWinner,
         reach: point.tiktok.reach,
         postedInLast30Days: point.tiktok.postedInLast30Days,
+        postedInLast7Days: point.tiktok.postedInLast7Days,
       },
       channel: {
         points: (point.channel.reelIn7Days ? 1 : 0) + (point.channel.postedIn7Days ? 1 : 0),
@@ -625,9 +696,11 @@ export type RankingRow = {
   change: { delta: number | null; direction: "up" | "down" | "flat" | "unknown" };
   /** Whether an ad is running right now — the hex map's 🟢 status. */
   adLive: boolean;
-  tiktok: { hasData: boolean; reach: number; postedInLast30Days: boolean };
+  tiktok: { hasData: boolean; reach: number; postedInLast30Days: boolean; postedInLast7Days: boolean };
   channel: { hasData: boolean; reelIn7Days: boolean; postedIn7Days: boolean };
   newsletterActivity: { hasData: boolean; sentInLast30Days: boolean };
+  /** Manually-reported Facebook group posts this week — see facebook_group_activity. */
+  group: { hasData: boolean; postCount: number };
 };
 
 export type RankingsResult = {
@@ -667,9 +740,10 @@ export async function getRankings(filters: {
         previousScore: null,
         change: { delta: null, direction: "unknown" as const },
         adLive: false,
-        tiktok: { hasData: false, reach: 0, postedInLast30Days: false },
+        tiktok: { hasData: false, reach: 0, postedInLast30Days: false, postedInLast7Days: false },
         channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
         newsletterActivity: { hasData: false, sentInLast30Days: false },
+        group: { hasData: false, postCount: 0 },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
   }
@@ -703,9 +777,10 @@ export async function getRankings(filters: {
         previousScore,
         change: scoreChange(r.score, previousScore),
         adLive: currentMetrics?.adSpend.recencyStatus === "active",
-        tiktok: currentMetrics?.tiktok ?? { hasData: false, reach: 0, postedInLast30Days: false },
+        tiktok: currentMetrics?.tiktok ?? { hasData: false, reach: 0, postedInLast30Days: false, postedInLast7Days: false },
         channel: currentMetrics?.channel ?? { hasData: false, reelIn7Days: false, postedIn7Days: false },
         newsletterActivity: currentMetrics?.newsletterActivity ?? { hasData: false, sentInLast30Days: false },
+        group: currentMetrics?.group ?? { hasData: false, postCount: 0 },
       };
     });
 
@@ -719,7 +794,14 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
   newsletter: { sendCount: 0, hasData: false },
-  tiktok: { points: 0, hasData: false, isBestPostWinner: false, reach: 0, postedInLast30Days: false },
+  tiktok: {
+    points: 0,
+    hasData: false,
+    isBestPostWinner: false,
+    reach: 0,
+    postedInLast30Days: false,
+    postedInLast7Days: false,
+  },
   channel: { points: 0, hasData: false, reelIn7Days: false, postedIn7Days: false },
   newsletterActivity: { points: 0, hasData: false, sentInLast30Days: false },
 };
