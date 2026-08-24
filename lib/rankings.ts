@@ -793,7 +793,14 @@ export type RankingRow = {
   change: { delta: number | null; direction: "up" | "down" | "flat" | "unknown" };
   /** Whether an ad is running right now — the hex map's 🟢 status. */
   adLive: boolean;
-  tiktok: { hasData: boolean; reach: number; postedInLast30Days: boolean; postedInLast7Days: boolean };
+  tiktok: {
+    hasData: boolean;
+    reach: number;
+    postedInLast30Days: boolean;
+    postedInLast7Days: boolean;
+    /** Won the "best-performing post nationally that week" TikTok point — see weeklyBestPostWinner. */
+    isBestPostWinner: boolean;
+  };
   channel: { hasData: boolean; reelIn7Days: boolean; postedIn7Days: boolean };
   newsletterActivity: { hasData: boolean; sentInLast30Days: boolean; sentThisCalendarMonth: boolean };
   /** Manually-reported Facebook group posts this week — see facebook_group_activity. */
@@ -839,7 +846,13 @@ export async function getRankings(filters: {
         previousScore: null,
         change: { delta: null, direction: "unknown" as const },
         adLive: false,
-        tiktok: { hasData: false, reach: 0, postedInLast30Days: false, postedInLast7Days: false },
+        tiktok: {
+          hasData: false,
+          reach: 0,
+          postedInLast30Days: false,
+          postedInLast7Days: false,
+          isBestPostWinner: false,
+        },
         channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
         newsletterActivity: { hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
         group: { hasData: false, postCount: 0 },
@@ -877,7 +890,13 @@ export async function getRankings(filters: {
         previousScore,
         change: scoreChange(r.score, previousScore),
         adLive: currentMetrics?.adSpend.recencyStatus === "active",
-        tiktok: currentMetrics?.tiktok ?? { hasData: false, reach: 0, postedInLast30Days: false, postedInLast7Days: false },
+        tiktok: currentMetrics?.tiktok ?? {
+          hasData: false,
+          reach: 0,
+          postedInLast30Days: false,
+          postedInLast7Days: false,
+          isBestPostWinner: false,
+        },
         channel: currentMetrics?.channel ?? { hasData: false, reelIn7Days: false, postedIn7Days: false },
         newsletterActivity: currentMetrics?.newsletterActivity ?? {
           hasData: false,

@@ -195,7 +195,17 @@ export default async function ConstituencyDetailPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{constituency.name}</h1>
           <p className="mt-1 text-black/70 dark:text-white/70">
-            {constituency.mp_or_candidate_name || "MP/candidate not yet known"} · {constituency.region}
+            {constituency.mp_or_candidate_name || "MP/candidate not yet known"}
+            {current.tiktok.isBestPostWinner && (
+              <span
+                className="ml-1.5"
+                title="Best-performing TikTok nationally this week"
+                aria-label="Best-performing TikTok nationally this week"
+              >
+                🏅
+              </span>
+            )}{" "}
+            · {constituency.region}
             {constituency.cohort && ` · ${constituency.cohort}`}
           </p>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm">
