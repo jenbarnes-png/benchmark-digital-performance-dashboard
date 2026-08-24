@@ -114,10 +114,13 @@ function toChannelPostItem(r: PostRow): ChannelPostItem {
   };
 }
 
-/** Best-performing individual Facebook/Instagram posts nationally in the last 30 days, ranked by reach. */
+/** Best-performing individual Facebook/Instagram posts nationally in the last 30 days, ranked by reach — one per MP, so a single prolific office can't take every shout-out slot. */
 export async function getTopChannelPostsNational(limit = 3): Promise<ChannelPostItem[]> {
   const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
+  // Pulls more candidates than needed, then dedupes by constituency in
+  // JS below — a plain limit would let one MP's best posts crowd out
+  // everyone else's.
   const rows = await sql<PostRow[]>`
     select
       sad.platform, sad.date::text, sad.top_post_url, sad.top_post_text,
@@ -128,10 +131,18 @@ export async function getTopChannelPostsNational(limit = 3): Promise<ChannelPost
     join constituencies c on c.id = r.constituency_id
     where sad.top_post_url is not null and sad.date >= ${windowStart}
     order by sad.top_post_reach desc nulls last
-    limit ${limit}
+    limit ${limit * 10}
   `;
 
-  return rows.map(toChannelPostItem);
+  const seen = new Set<string>();
+  const deduped: ChannelPostItem[] = [];
+  for (const row of rows) {
+    if (seen.has(row.constituency_id)) continue;
+    seen.add(row.constituency_id);
+    deduped.push(toChannelPostItem(row));
+    if (deduped.length >= limit) break;
+  }
+  return deduped;
 }
 
 /** A constituency's own best Facebook/Instagram posts in the last 30 days, ranked by reach. */

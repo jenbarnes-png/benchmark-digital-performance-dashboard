@@ -45,10 +45,13 @@ function toItem(r: Row): TiktokVideoItem {
   };
 }
 
-/** The single best-performing videos nationally in the last 30 days, ranked by views — a shout-out list, not one-per-MP. */
+/** The single best-performing videos nationally in the last 30 days, ranked by views — one per MP, so a single prolific office can't take every shout-out slot. */
 export async function getTopTiktokVideosNational(limit = 3): Promise<TiktokVideoItem[]> {
   const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
+  // Pulls more candidates than needed, then dedupes by constituency in
+  // JS below — a plain limit would let one MP's best videos crowd out
+  // everyone else's.
   const rows = await sql<Row[]>`
     select
       tv.id, tv.video_url, tv.posted_at::text, tv.view_count, tv.like_count, tv.comment_count, tv.share_count,
@@ -59,10 +62,18 @@ export async function getTopTiktokVideosNational(limit = 3): Promise<TiktokVideo
     join constituencies c on c.id = r.constituency_id
     where tv.posted_at >= ${windowStart}
     order by tv.view_count desc nulls last
-    limit ${limit}
+    limit ${limit * 10}
   `;
 
-  return rows.map(toItem);
+  const seen = new Set<string>();
+  const deduped: TiktokVideoItem[] = [];
+  for (const row of rows) {
+    if (seen.has(row.constituency_id)) continue;
+    seen.add(row.constituency_id);
+    deduped.push(toItem(row));
+    if (deduped.length >= limit) break;
+  }
+  return deduped;
 }
 
 /** A constituency's own videos in the last RECENT_WINDOW_DAYS days, most viewed first. */
