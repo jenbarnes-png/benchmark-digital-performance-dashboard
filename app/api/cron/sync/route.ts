@@ -4,6 +4,11 @@ import { syncChannelDataFromSheet, aggregateWeeklyChannelActivity } from "@/lib/
 import { syncMetaAds } from "@/lib/adSpendSync";
 import { aggregateRecentAdSpend } from "@/lib/adSpendAggregation";
 
+// Vercel's default function timeout is 10s, nowhere near enough for
+// three sequential external syncs (channel data alone upserts 1500+
+// rows one at a time). 60s is the max Hobby-plan functions allow.
+export const maxDuration = 60;
+
 // Runs every sync Hani's warehouse feeds — the same thing
 // scripts/sync_tiktok.mts, sync_channel_data.mts, and sync_meta_ads.mts
 // each do by hand. Triggered on a schedule (see .github/workflows/

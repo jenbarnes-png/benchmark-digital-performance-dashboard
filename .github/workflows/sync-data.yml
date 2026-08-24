@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Call the sync endpoint
         run: |
-          status=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 90 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "https://digital-performance-dashboard-seven.vercel.app/api/cron/sync")
           echo "HTTP status: $status"
