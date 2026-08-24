@@ -14,8 +14,14 @@ const sections = [
     available: true,
   },
   {
+    href: "/admin/subscribers",
+    label: "Subscriber counts (monthly)",
+    description: "Log the email subscriber list size by hand once a month — feeds the newsletter growth point, needs approval before it counts.",
+    available: true,
+  },
+  {
     href: null,
-    label: "Ad spend & newsletter data",
+    label: "Ad spend data",
     description: "Manual entry for data that can't be pulled in automatically.",
     available: false,
   },

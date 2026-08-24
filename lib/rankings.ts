@@ -11,13 +11,19 @@ import {
 import { scoreForChannel, CHANNEL_MAX_POINTS } from "./channelScoring";
 import { scoreForNewsletter, NEWSLETTER_MAX_POINTS } from "./newsletterScoring";
 import { scoreForGroup, GROUP_MAX_POINTS } from "./groupScoring";
+import { scoreForSubscriberGrowth, SUBSCRIBER_MAX_POINTS, SUBSCRIBER_GROWTH_TARGET } from "./subscriberScoring";
 
 // Used only when literally nothing has been tracked yet (periods.length
 // === 0 below) — the real total is always computed from the actual
 // metrics array via totalPossiblePoints, this is just its value before
 // any metrics exist to sum.
 const FALLBACK_MAX_POINTS =
-  AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS + CHANNEL_MAX_POINTS + NEWSLETTER_MAX_POINTS + GROUP_MAX_POINTS;
+  AD_RECENCY_POINTS.active +
+  TIKTOK_MAX_POINTS +
+  CHANNEL_MAX_POINTS +
+  NEWSLETTER_MAX_POINTS +
+  GROUP_MAX_POINTS +
+  SUBSCRIBER_MAX_POINTS;
 
 export type Period = { start: string; end: string };
 
@@ -220,6 +226,12 @@ export type PeriodMetrics = {
     /** Sent since the 1st of the calendar month this period ended in. */
     sentThisCalendarMonth: boolean;
   };
+  /** Subscriber-list growth vs the previous calendar month — see lib/subscriberCounts.ts. */
+  subscriberGrowth: {
+    points: number;
+    hasData: boolean;
+    grewByAtLeastTarget: boolean;
+  };
 };
 
 /**
@@ -241,6 +253,7 @@ async function buildMetricsIndex() {
     tiktokVideoRows,
     channelActivityRows,
     newsletterEventRows,
+    subscriberCountRows,
   ] = await Promise.all([
     sql<OrganicRow[]>`select constituency_id, platform_id, period_start::text, post_count, has_data from organic_posts`,
     sql<AdSpendRow[]>`select constituency_id, platform_id, period_start::text, amount_spent, target_amount, has_data from ad_spend`,
@@ -282,6 +295,9 @@ async function buildMetricsIndex() {
       select r.constituency_id, ne.received_at::text
       from newsletter_events ne
       join representatives r on r.id = ne.representative_id and r.ended_at is null
+    `,
+    sql<{ constituency_id: string; month_start: string; subscriber_count: number | null; has_data: boolean }[]>`
+      select constituency_id, month_start::text, subscriber_count, has_data from subscriber_counts
     `,
   ]);
 
@@ -429,6 +445,37 @@ async function buildMetricsIndex() {
     return { sentInLast30Days, sentThisCalendarMonth };
   }
 
+  const subscriberCountsByConstituency = new Map<string, Map<string, number>>();
+  for (const row of subscriberCountRows) {
+    if (!row.has_data || row.subscriber_count === null) continue;
+    if (!subscriberCountsByConstituency.has(row.constituency_id)) {
+      subscriberCountsByConstituency.set(row.constituency_id, new Map());
+    }
+    subscriberCountsByConstituency.get(row.constituency_id)!.set(row.month_start, row.subscriber_count);
+  }
+
+  /** Growth vs the previous calendar month's approved count, as of a
+   * given date. Needs both months' counts approved to say anything —
+   * a single month alone can't show growth, so hasComparison is false
+   * until there are two consecutive approved months. */
+  function subscriberGrowthAsOf(
+    constituencyId: string,
+    referenceDate: Date
+  ): { hasComparison: boolean; grewByAtLeastTarget: boolean } {
+    const byMonth = subscriberCountsByConstituency.get(constituencyId);
+    if (!byMonth) return { hasComparison: false, grewByAtLeastTarget: false };
+
+    const thisMonthStart = toDateStr(new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), 1)));
+    const prevMonthStart = toDateStr(
+      new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() - 1, 1))
+    );
+    const thisCount = byMonth.get(thisMonthStart);
+    const prevCount = byMonth.get(prevMonthStart);
+    if (thisCount === undefined || prevCount === undefined) return { hasComparison: false, grewByAtLeastTarget: false };
+
+    return { hasComparison: true, grewByAtLeastTarget: thisCount - prevCount >= SUBSCRIBER_GROWTH_TARGET };
+  }
+
   const advertiserConstituencyIds = new Set(advertiserRows.map((r) => r.constituency_id));
   const adWindowsByConstituency = new Map<string, { start: string | null; stop: string | null }[]>();
   for (const row of adWindowRows) {
@@ -524,6 +571,10 @@ async function buildMetricsIndex() {
       sentInLast30Days: boolean;
       sentThisCalendarMonth: boolean;
     };
+    subscriberGrowth: {
+      hasComparison: boolean;
+      grewByAtLeastTarget: boolean;
+    };
   };
   const rawPoints: RawPoint[] = [];
 
@@ -578,6 +629,7 @@ async function buildMetricsIndex() {
 
       const channelInfo = channelActivityAsOf(constituencyId, periodEndDate);
       const newsletterActivityInfo = newsletterActivityAsOf(constituencyId, periodEndDate);
+      const subscriberGrowthInfo = subscriberGrowthAsOf(constituencyId, periodEndDate);
 
       rawPoints.push({
         constituencyId,
@@ -615,6 +667,10 @@ async function buildMetricsIndex() {
           hasAccount: newsletterAccountConstituencyIds.has(constituencyId),
           sentInLast30Days: newsletterActivityInfo.sentInLast30Days,
           sentThisCalendarMonth: newsletterActivityInfo.sentThisCalendarMonth,
+        },
+        subscriberGrowth: {
+          hasComparison: subscriberGrowthInfo.hasComparison,
+          grewByAtLeastTarget: subscriberGrowthInfo.grewByAtLeastTarget,
         },
       });
     }
@@ -679,6 +735,13 @@ async function buildMetricsIndex() {
         key: "groupPoints",
         ...scoreForGroup({ hasAccount: point.group.hasData, postCount: point.group.postCount }),
       },
+      {
+        key: "subscriberGrowth",
+        ...scoreForSubscriberGrowth({
+          hasAccount: point.subscriberGrowth.hasComparison,
+          grewByAtLeastTarget: point.subscriberGrowth.grewByAtLeastTarget,
+        }),
+      },
     ];
 
     index.set(periodKey(point.constituencyId, point.period), {
@@ -705,10 +768,15 @@ async function buildMetricsIndex() {
         postedIn7Days: point.channel.postedIn7Days,
       },
       newsletterActivity: {
-        points: point.newsletterActivity.sentInLast30Days ? 1 : 0,
+        points: point.newsletterActivity.sentThisCalendarMonth ? NEWSLETTER_MAX_POINTS : 0,
         hasData: point.newsletterActivity.hasAccount,
         sentInLast30Days: point.newsletterActivity.sentInLast30Days,
         sentThisCalendarMonth: point.newsletterActivity.sentThisCalendarMonth,
+      },
+      subscriberGrowth: {
+        points: point.subscriberGrowth.grewByAtLeastTarget ? SUBSCRIBER_MAX_POINTS : 0,
+        hasData: point.subscriberGrowth.hasComparison,
+        grewByAtLeastTarget: point.subscriberGrowth.grewByAtLeastTarget,
       },
     });
   }
@@ -730,6 +798,8 @@ export type RankingRow = {
   newsletterActivity: { hasData: boolean; sentInLast30Days: boolean; sentThisCalendarMonth: boolean };
   /** Manually-reported Facebook group posts this week — see facebook_group_activity. */
   group: { hasData: boolean; postCount: number };
+  /** hasData here means "has two consecutive approved months to compare" — see subscriberGrowthAsOf. */
+  subscriberGrowth: { hasData: boolean; grewByAtLeastTarget: boolean };
 };
 
 export type RankingsResult = {
@@ -773,6 +843,7 @@ export async function getRankings(filters: {
         channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
         newsletterActivity: { hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
         group: { hasData: false, postCount: 0 },
+        subscriberGrowth: { hasData: false, grewByAtLeastTarget: false },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
   }
@@ -814,6 +885,7 @@ export async function getRankings(filters: {
           sentThisCalendarMonth: false,
         },
         group: currentMetrics?.group ?? { hasData: false, postCount: 0 },
+        subscriberGrowth: currentMetrics?.subscriberGrowth ?? { hasData: false, grewByAtLeastTarget: false },
       };
     });
 
@@ -837,6 +909,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   },
   channel: { points: 0, hasData: false, reelIn7Days: false, postedIn7Days: false },
   newsletterActivity: { points: 0, hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
+  subscriberGrowth: { points: 0, hasData: false, grewByAtLeastTarget: false },
 };
 
 export type ConstituencyDetail = {

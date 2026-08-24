@@ -22,12 +22,7 @@ function getTransport() {
   });
 }
 
-export async function sendApprovalEmail(params: {
-  constituencyName: string;
-  periodLabel: string;
-  postCount: number;
-  reviewUrl: string;
-}): Promise<{ sent: boolean }> {
+async function sendReviewEmail(params: { subject: string; body: string }): Promise<{ sent: boolean }> {
   const transport = getTransport();
   if (!transport) {
     console.warn(
@@ -36,12 +31,24 @@ export async function sendApprovalEmail(params: {
     return { sent: false };
   }
 
-  const from = process.env.GMAIL_SMTP_USER!;
   await transport.sendMail({
-    from,
+    from: process.env.GMAIL_SMTP_USER!,
     to: APPROVAL_RECIPIENTS,
+    subject: params.subject,
+    text: params.body,
+  });
+  return { sent: true };
+}
+
+export function sendApprovalEmail(params: {
+  constituencyName: string;
+  periodLabel: string;
+  postCount: number;
+  reviewUrl: string;
+}): Promise<{ sent: boolean }> {
+  return sendReviewEmail({
     subject: `Approve: ${params.constituencyName} — ${params.postCount} Facebook group post${params.postCount === 1 ? "" : "s"} (${params.periodLabel})`,
-    text: [
+    body: [
       `${params.constituencyName} reported ${params.postCount} Facebook group post${params.postCount === 1 ? "" : "s"} for ${params.periodLabel}.`,
       "",
       `Review and approve or reject: ${params.reviewUrl}`,
@@ -49,5 +56,22 @@ export async function sendApprovalEmail(params: {
       "This won't count toward the tracker until approved.",
     ].join("\n"),
   });
-  return { sent: true };
+}
+
+export function sendSubscriberApprovalEmail(params: {
+  constituencyName: string;
+  monthLabel: string;
+  subscriberCount: number;
+  reviewUrl: string;
+}): Promise<{ sent: boolean }> {
+  return sendReviewEmail({
+    subject: `Approve: ${params.constituencyName} — ${params.subscriberCount.toLocaleString()} subscribers (${params.monthLabel})`,
+    body: [
+      `${params.constituencyName} reported ${params.subscriberCount.toLocaleString()} subscribers for ${params.monthLabel}.`,
+      "",
+      `Review and approve or reject: ${params.reviewUrl}`,
+      "",
+      "This won't count toward the tracker until approved.",
+    ].join("\n"),
+  });
 }

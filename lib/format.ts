@@ -7,6 +7,10 @@ export function formatPeriodLabel(period: Period): string {
   return `${fmt(start)} – ${fmt(end)} ${end.getFullYear()}`;
 }
 
+export function formatMonthLabel(monthStart: string): string {
+  return new Date(`${monthStart}T00:00:00Z`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
 export function formatDateTime(iso: string | null): string {
   if (!iso) return "Never";
   return new Date(iso).toLocaleString("en-GB", {
