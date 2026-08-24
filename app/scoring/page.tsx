@@ -1,5 +1,6 @@
-import { RECENT_WINDOW_DAYS, AD_RECENCY_POINTS } from "@/lib/adRecency";
+import { AD_RECENCY_POINTS } from "@/lib/adRecency";
 import { TIKTOK_MAX_POINTS } from "@/lib/tiktokScoring";
+import { CHANNEL_MAX_POINTS } from "@/lib/channelScoring";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -68,27 +69,36 @@ export default function ScoringPage() {
       </div>
 
       <Section title="Paid advertising (Meta)">
-        <p>Scored on recent activity, not spend — matches the National Dashboard hex map:</p>
+        <p>Live or not — matches the National Dashboard hex map:</p>
         <ul className="ml-4 list-disc space-y-1">
           <li>
             <span className="font-medium text-emerald-600 dark:text-emerald-400">🟢 Running an ad right now</span>{" "}
             — {AD_RECENCY_POINTS.active} points
           </li>
           <li>
-            <span className="font-medium text-amber-600 dark:text-amber-400">
-              🟠 Had one within the last {RECENT_WINDOW_DAYS} days
-            </span>{" "}
-            — {AD_RECENCY_POINTS.recent} point
-          </li>
-          <li>
-            <span className="font-medium text-red-600 dark:text-red-400">
-              🔴 Nothing in over {RECENT_WINDOW_DAYS} days, or never
-            </span>{" "}
-            — {AD_RECENCY_POINTS.stale} points
+            <span className="font-medium text-red-600 dark:text-red-400">🔴 No ad running right now</span> —{" "}
+            {AD_RECENCY_POINTS.stale} points
           </li>
         </ul>
         <p className="text-xs text-black/50 dark:text-white/50">
           No advertiser matched yet? Shows &quot;no data&quot; here, counts as 0 overall.
+        </p>
+      </Section>
+
+      <Section title="Facebook & Instagram">
+        <p className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+          Live for the 28 pilot MPs
+        </p>
+        <p>
+          Sourced from an internal data warehouse, refreshed every few hours. Scored out of{" "}
+          {CHANNEL_MAX_POINTS} points, based on the last 7 days:
+        </p>
+        <ul className="ml-4 list-disc space-y-1">
+          <li>Posted a Reel on Facebook or Instagram — 1 point</li>
+          <li>Posted anything organically on either channel — 1 point</li>
+        </ul>
+        <p className="text-xs text-black/50 dark:text-white/50">
+          Not one point per post — just whether it happened at all in the last 7 days.
         </p>
       </Section>
 
@@ -113,11 +123,13 @@ export default function ScoringPage() {
         </p>
       </Section>
 
-      <Section title="Organic posting, group activity & newsletter">
+      <Section title="Organic posting (manual entry), group activity & newsletter">
         <p>
           Scored relative to the best-performing pilot constituency that week — the top count
           scores 100, everyone else scales proportionally. A placeholder until better benchmarks
-          exist.
+          exist, and separate from the automated Facebook &amp; Instagram score above — this
+          covers manually-reported organic post counts, Facebook group posts, and newsletter
+          sends, and doesn&apos;t currently count toward the overall points total.
         </p>
       </Section>
 

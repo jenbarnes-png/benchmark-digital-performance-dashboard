@@ -21,9 +21,8 @@ const LEGEND: Record<Mode, HexLegendItem[]> = {
     { tier: "not_tracked", label: "No data yet" },
   ],
   ads: [
-    { tier: "active", label: "Running ads now" },
-    { tier: "recent", label: "Active in the last 2 months" },
-    { tier: "stale", label: "No activity in 2+ months" },
+    { tier: "active", label: "Running an ad right now" },
+    { tier: "stale", label: "No ad running right now" },
     { tier: "not_tracked", label: "Not yet tracked" },
   ],
   tiktok: [

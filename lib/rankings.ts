@@ -8,12 +8,13 @@ import {
   TIKTOK_MAX_POINTS,
   type TiktokVideoLite,
 } from "./tiktokScoring";
+import { scoreForChannel, CHANNEL_MAX_POINTS } from "./channelScoring";
 
 // Used only when literally nothing has been tracked yet (periods.length
 // === 0 below) — the real total is always computed from the actual
 // metrics array via totalPossiblePoints, this is just its value before
 // any metrics exist to sum.
-const FALLBACK_MAX_POINTS = AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS;
+const FALLBACK_MAX_POINTS = AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS + CHANNEL_MAX_POINTS;
 
 export type Period = { start: string; end: string };
 
@@ -129,6 +130,14 @@ export type PeriodMetrics = {
     /** Posted at all in the 30 days before this period ended — the loosest of the four stacking recency tiers. */
     postedInLast30Days: boolean;
   };
+  channel: {
+    points: number;
+    hasData: boolean;
+    /** Posted a Reel on Facebook or Instagram in the 7 days before this period ended. */
+    reelIn7Days: boolean;
+    /** Posted anything organically on Facebook or Instagram in the 7 days before this period ended. */
+    postedIn7Days: boolean;
+  };
 };
 
 /**
@@ -148,6 +157,7 @@ async function buildMetricsIndex() {
     adWindowRows,
     tiktokAccountRows,
     tiktokVideoRows,
+    channelActivityRows,
   ] = await Promise.all([
     sql<OrganicRow[]>`select constituency_id, platform_id, period_start::text, post_count, has_data from organic_posts`,
     sql<AdSpendRow[]>`select constituency_id, platform_id, period_start::text, amount_spent, target_amount, has_data from ad_spend`,
@@ -179,6 +189,11 @@ async function buildMetricsIndex() {
       from tiktok_videos tv
       join social_accounts sa on sa.id = tv.account_id and sa.ended_at is null
       join representatives r on r.id = sa.representative_id and r.ended_at is null
+    `,
+    sql<{ constituency_id: string; date: string; post_count: number | null; reel_count: number | null }[]>`
+      select r.constituency_id, sad.date::text, sad.post_count, sad.reel_count
+      from social_activity_daily sad
+      join representatives r on r.id = sad.representative_id and r.ended_at is null
     `,
   ]);
 
@@ -259,6 +274,40 @@ async function buildMetricsIndex() {
     }, 0);
   }
 
+  const channelAccountConstituencyIds = new Set(channelActivityRows.map((r) => r.constituency_id));
+  const channelDaysByConstituency = new Map<
+    string,
+    { date: string; postCount: number; reelCount: number }[]
+  >();
+  for (const row of channelActivityRows) {
+    if (!channelDaysByConstituency.has(row.constituency_id)) channelDaysByConstituency.set(row.constituency_id, []);
+    channelDaysByConstituency
+      .get(row.constituency_id)!
+      .push({ date: row.date, postCount: row.post_count ?? 0, reelCount: row.reel_count ?? 0 });
+  }
+
+  /** Reel-in-7-days / posted-at-all-in-7-days as of a given date — same
+   * trailing-window approach as ad recency and TikTok, and the same
+   * 7-day window as the Dream Week organic card, to avoid a "Monday
+   * morning gap" where a brand-new period reads false purely because
+   * the data warehouse hasn't caught up yet. */
+  function channelActivityAsOf(
+    constituencyId: string,
+    referenceDate: Date
+  ): { reelIn7Days: boolean; postedIn7Days: boolean } {
+    const cutoff = new Date(referenceDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const days = channelDaysByConstituency.get(constituencyId) ?? [];
+    let reelCount = 0;
+    let postCount = 0;
+    for (const d of days) {
+      const date = new Date(d.date);
+      if (date > referenceDate || date < cutoff) continue;
+      reelCount += d.reelCount;
+      postCount += d.postCount;
+    }
+    return { reelIn7Days: reelCount > 0, postedIn7Days: postCount > 0 };
+  }
+
   const advertiserConstituencyIds = new Set(advertiserRows.map((r) => r.constituency_id));
   const adWindowsByConstituency = new Map<string, { start: string | null; stop: string | null }[]>();
   for (const row of adWindowRows) {
@@ -322,6 +371,7 @@ async function buildMetricsIndex() {
       ...newsletter.map((r) => r.constituency_id),
       ...advertiserConstituencyIds,
       ...tiktokAccountConstituencyIds,
+      ...channelAccountConstituencyIds,
     ])
   );
 
@@ -340,6 +390,11 @@ async function buildMetricsIndex() {
       isBestPostWinner: boolean;
       reach: number;
       postedInLast30Days: boolean;
+    };
+    channel: {
+      hasAccount: boolean;
+      reelIn7Days: boolean;
+      postedIn7Days: boolean;
     };
   };
   const rawPoints: RawPoint[] = [];
@@ -382,6 +437,8 @@ async function buildMetricsIndex() {
       // directly rather than re-deriving it separately.
       const tiktokPostedInLast30Days = tiktokRecencyPoints >= 1;
 
+      const channelInfo = channelActivityAsOf(constituencyId, periodEndDate);
+
       rawPoints.push({
         constituencyId,
         period: start,
@@ -407,6 +464,11 @@ async function buildMetricsIndex() {
           isBestPostWinner: tiktokIsBestPostWinner,
           reach: tiktokReachFor(constituencyId, periodEndDate),
           postedInLast30Days: tiktokPostedInLast30Days,
+        },
+        channel: {
+          hasAccount: channelAccountConstituencyIds.has(constituencyId),
+          reelIn7Days: channelInfo.reelIn7Days,
+          postedIn7Days: channelInfo.postedIn7Days,
         },
       });
     }
@@ -452,6 +514,14 @@ async function buildMetricsIndex() {
         peerValues: peers.newsletter,
       }),
       { key: "tiktok", ...scoreForTiktok({ hasAccount: point.tiktok.hasAccount, points: point.tiktok.points }) },
+      {
+        key: "channel",
+        ...scoreForChannel({
+          hasAccount: point.channel.hasAccount,
+          reelIn7Days: point.channel.reelIn7Days,
+          postedIn7Days: point.channel.postedIn7Days,
+        }),
+      },
     ];
 
     index.set(periodKey(point.constituencyId, point.period), {
@@ -470,6 +540,12 @@ async function buildMetricsIndex() {
         reach: point.tiktok.reach,
         postedInLast30Days: point.tiktok.postedInLast30Days,
       },
+      channel: {
+        points: (point.channel.reelIn7Days ? 1 : 0) + (point.channel.postedIn7Days ? 1 : 0),
+        hasData: point.channel.hasAccount,
+        reelIn7Days: point.channel.reelIn7Days,
+        postedIn7Days: point.channel.postedIn7Days,
+      },
     });
   }
 
@@ -486,6 +562,7 @@ export type RankingRow = {
   /** Whether an ad is running right now — the hex map's 🟢 status. */
   adLive: boolean;
   tiktok: { hasData: boolean; reach: number; postedInLast30Days: boolean };
+  channel: { hasData: boolean; reelIn7Days: boolean; postedIn7Days: boolean };
 };
 
 export type RankingsResult = {
@@ -526,6 +603,7 @@ export async function getRankings(filters: {
         change: { delta: null, direction: "unknown" as const },
         adLive: false,
         tiktok: { hasData: false, reach: 0, postedInLast30Days: false },
+        channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
   }
@@ -560,6 +638,7 @@ export async function getRankings(filters: {
         change: scoreChange(r.score, previousScore),
         adLive: currentMetrics?.adSpend.recencyStatus === "active",
         tiktok: currentMetrics?.tiktok ?? { hasData: false, reach: 0, postedInLast30Days: false },
+        channel: currentMetrics?.channel ?? { hasData: false, reelIn7Days: false, postedIn7Days: false },
       };
     });
 
@@ -574,6 +653,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   group: { postCount: 0, hasData: false },
   newsletter: { sendCount: 0, hasData: false },
   tiktok: { points: 0, hasData: false, isBestPostWinner: false, reach: 0, postedInLast30Days: false },
+  channel: { points: 0, hasData: false, reelIn7Days: false, postedIn7Days: false },
 };
 
 export type ConstituencyDetail = {

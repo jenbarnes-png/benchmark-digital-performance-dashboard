@@ -21,16 +21,18 @@ export function classifyAdRecency(params: {
 }
 
 /**
- * The points system: 2 for currently running ads, 1 for something
- * within the last 2 months, 0 for stale/never. Expressed on the same
- * 0-100 scale as every other scored metric (2 points = 100, 1 = 50, 0 =
- * 0) so it can be averaged into the overall score without special-
- * casing — the ranking page and /scoring both read POINTS below,
- * so update it there if the weighting ever changes.
+ * The points system: 2 if an ad is running right now, 0 otherwise —
+ * binary, not a recency gradient. Expressed on the same 0-100 scale as
+ * every other scored metric so it can be averaged into the overall
+ * score without special-casing — the ranking page and /scoring both
+ * read POINTS below, so update it there if the weighting ever changes.
+ * `recent` (active within RECENT_WINDOW_DAYS) still exists as a
+ * classification, used for hex map/Dream Week tooltip detail, but no
+ * longer earns a point of its own.
  */
 export const AD_RECENCY_POINTS: Record<Exclude<AdRecencyStatus, "no_advertiser">, number> = {
   active: 2,
-  recent: 1,
+  recent: 0,
   stale: 0,
 };
 

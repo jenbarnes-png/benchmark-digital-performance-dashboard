@@ -43,15 +43,17 @@ export async function getAdHexStatuses(): Promise<Map<string, ConstituencyHexSta
       referenceDate: now,
     });
 
-    const tier: HexTier =
-      status === "no_advertiser" ? "not_tracked" : status === "active" ? "active" : status === "recent" ? "recent" : "stale";
+    // Scoring is binary (live or not — see AD_RECENCY_POINTS), so the
+    // hex colour is too: "recent" still exists as a classification for
+    // the detail tooltip, but doesn't get its own colour tier anymore.
+    const tier: HexTier = status === "no_advertiser" ? "not_tracked" : status === "active" ? "active" : "stale";
     const detail =
       status === "no_advertiser"
         ? "Not yet tracked"
         : status === "active"
           ? `${activeAdCount} active ad${activeAdCount === 1 ? "" : "s"}`
           : status === "recent"
-            ? "No ads running now, active within the last 2 months"
+            ? "No ad running right now, active within the last 2 months"
             : "No ad activity in the last 2 months";
 
     map.set(row.name, { constituencyId: row.constituency_id, name: row.name, tier, detail });

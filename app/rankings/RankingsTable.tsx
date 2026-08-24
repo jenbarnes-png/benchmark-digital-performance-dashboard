@@ -15,6 +15,8 @@ type SortKey =
   | "adLive"
   | "tiktokRecent"
   | "tiktokReach"
+  | "channelReel"
+  | "channelPosted"
   | "change";
 type SortDir = "asc" | "desc";
 
@@ -27,6 +29,8 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   adLive: "desc",
   tiktokRecent: "desc",
   tiktokReach: "desc",
+  channelReel: "desc",
+  channelPosted: "desc",
   change: "desc",
 };
 
@@ -88,6 +92,8 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       adLive: r.adLive ? 1 : 0,
       tiktokRecent: r.tiktok.hasData ? (r.tiktok.postedInLast30Days ? 1 : 0) : -1,
       tiktokReach: r.tiktok.hasData ? r.tiktok.reach : -1,
+      channelReel: r.channel.hasData ? (r.channel.reelIn7Days ? 1 : 0) : -1,
+      channelPosted: r.channel.hasData ? (r.channel.postedIn7Days ? 1 : 0) : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
     withKeys.sort((a, b) => {
@@ -114,6 +120,8 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Ads live", "adLive"],
                 ["Posted TikTok (last 30 days)", "tiktokRecent"],
                 ["TikTok reach (last 30 days)", "tiktokReach"],
+                ["Reel (last 7 days)", "channelReel"],
+                ["Posted FB/IG (last 7 days)", "channelPosted"],
                 ["Change", "change"],
               ] as [string, SortKey][]
             ).map(([label, key]) => (
@@ -187,13 +195,37 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 {r.tiktok.hasData ? formatCount(r.tiktok.reach) : "—"}
               </td>
               <td className="px-4 py-3">
+                {!r.channel.hasData ? (
+                  <span className="text-black/40 dark:text-white/40">—</span>
+                ) : r.channel.reelIn7Days ? (
+                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                    Yes
+                  </span>
+                ) : (
+                  <span className="text-black/50 dark:text-white/50">No</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
+                {!r.channel.hasData ? (
+                  <span className="text-black/40 dark:text-white/40">—</span>
+                ) : r.channel.postedIn7Days ? (
+                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                    Yes
+                  </span>
+                ) : (
+                  <span className="text-black/50 dark:text-white/50">No</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
                 <ChangeIndicator delta={r.change.delta} direction={r.change.direction} />
               </td>
             </tr>
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={9} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={11} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
