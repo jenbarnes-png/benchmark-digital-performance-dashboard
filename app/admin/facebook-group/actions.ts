@@ -15,6 +15,8 @@ import { listConstituencies } from "@/lib/db";
 
 export type FormState = { error: string } | null;
 
+const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
+
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -29,7 +31,17 @@ function parseCount(formData: FormData, key: string): number | null | "invalid" 
   return value;
 }
 
-function parseInput(formData: FormData): FacebookGroupInput | { error: string } {
+async function parseScreenshot(
+  formData: FormData
+): Promise<{ data: Buffer; contentType: string } | null | "invalid"> {
+  const file = formData.get("screenshot");
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (!file.type.startsWith("image/")) return "invalid";
+  if (file.size > MAX_SCREENSHOT_BYTES) return "invalid";
+  return { data: Buffer.from(await file.arrayBuffer()), contentType: file.type };
+}
+
+async function parseInput(formData: FormData): Promise<FacebookGroupInput | { error: string }> {
   const constituencyId = String(formData.get("constituencyId") ?? "").trim();
   const periodStart = String(formData.get("periodStart") ?? "").trim();
 
@@ -41,11 +53,18 @@ function parseInput(formData: FormData): FacebookGroupInput | { error: string } 
     return { error: "Post count must be a whole number, or left blank." };
   }
 
-  return { constituencyId, periodStart, periodEnd: addDays(periodStart, 6), postCount };
+  const postUrl = String(formData.get("postUrl") ?? "").trim() || null;
+
+  const screenshot = await parseScreenshot(formData);
+  if (screenshot === "invalid") {
+    return { error: "Screenshot must be an image file under 5MB." };
+  }
+
+  return { constituencyId, periodStart, periodEnd: addDays(periodStart, 6), postCount, postUrl, screenshot };
 }
 
 export async function submitFacebookGroupAction(_prevState: FormState, formData: FormData): Promise<FormState> {
-  const input = parseInput(formData);
+  const input = await parseInput(formData);
   if ("error" in input) return input;
 
   const entry = await submitFacebookGroupEntry(input);

@@ -83,6 +83,44 @@ export default function FacebookGroupForm({
         />
       </div>
 
+      <div>
+        <label htmlFor="postUrl" className="block text-sm font-medium">
+          Link to the post
+        </label>
+        <input
+          id="postUrl"
+          name="postUrl"
+          type="url"
+          defaultValue={initialValues?.postUrl ?? ""}
+          placeholder="https://facebook.com/groups/…"
+          className="mt-1 w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="screenshot" className="block text-sm font-medium">
+          Screenshot of the post
+        </label>
+        {initialValues?.hasScreenshot && (
+          <div className="mt-2">
+            {/* eslint-disable-next-line @next/next/no-img-element -- served from our own dynamic DB-backed route, not a static asset next/image can optimize */}
+            <img
+              src={`/admin/facebook-group/screenshot/${initialValues.id}`}
+              alt="Current screenshot"
+              className="h-32 w-auto rounded-md border border-black/10 dark:border-white/15"
+            />
+            <p className="mt-1 text-xs text-black/50 dark:text-white/50">Current screenshot — choose a file below to replace it.</p>
+          </div>
+        )}
+        <input
+          id="screenshot"
+          name="screenshot"
+          type="file"
+          accept="image/*"
+          className="mt-1 w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-black/5 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-black/10 dark:file:bg-white/10 dark:hover:file:bg-white/15"
+        />
+      </div>
+
       <p className="text-sm text-black/60 dark:text-white/60">
         Saving sends jenbarnes@fouroneone.co.uk and alexcreighton@fouroneone.co.uk an email to
         approve — it won&apos;t count on the tracker until then.

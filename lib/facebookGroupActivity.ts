@@ -9,11 +9,14 @@ import { sql } from "./db";
 export type FacebookGroupStatus = "pending" | "approved" | "rejected";
 
 export type FacebookGroupEntry = {
+  id: string;
   constituencyId: string;
   constituencyName: string;
   periodStart: string;
   periodEnd: string;
   postCount: number | null;
+  postUrl: string | null;
+  hasScreenshot: boolean;
   hasData: boolean;
   status: FacebookGroupStatus;
   approvalToken: string;
@@ -26,14 +29,20 @@ export type FacebookGroupInput = {
   periodStart: string;
   periodEnd: string;
   postCount: number | null;
+  postUrl: string | null;
+  /** Omit to leave an existing screenshot untouched (e.g. editing other fields without re-uploading). */
+  screenshot?: { data: Buffer; contentType: string } | null;
 };
 
 type Row = {
+  id: string;
   constituency_id: string;
   constituency_name: string;
   period_start: string;
   period_end: string;
   post_count: number | null;
+  post_url: string | null;
+  has_screenshot: boolean;
   has_data: boolean;
   status: FacebookGroupStatus;
   approval_token: string;
@@ -43,11 +52,14 @@ type Row = {
 
 function toEntry(r: Row): FacebookGroupEntry {
   return {
+    id: r.id,
     constituencyId: r.constituency_id,
     constituencyName: r.constituency_name,
     periodStart: r.period_start,
     periodEnd: r.period_end,
     postCount: r.post_count,
+    postUrl: r.post_url,
+    hasScreenshot: r.has_screenshot,
     hasData: r.has_data,
     status: r.status,
     approvalToken: r.approval_token,
@@ -58,9 +70,10 @@ function toEntry(r: Row): FacebookGroupEntry {
 
 const SELECT = sql`
   select
-    fga.constituency_id, c.name as constituency_name,
+    fga.id::text, fga.constituency_id, c.name as constituency_name,
     fga.period_start::text, fga.period_end::text,
-    fga.post_count, fga.has_data, fga.status, fga.approval_token::text,
+    fga.post_count, fga.post_url, (fga.screenshot_data is not null) as has_screenshot,
+    fga.has_data, fga.status, fga.approval_token::text,
     fga.approved_by, fga.approved_at::text
   from facebook_group_activity fga
   join constituencies c on c.id = fga.constituency_id
@@ -91,24 +104,42 @@ async function getEntryByToken(token: string): Promise<FacebookGroupEntry | unde
   return rows[0] ? toEntry(rows[0]) : undefined;
 }
 
+export async function getFacebookGroupScreenshot(
+  id: string
+): Promise<{ data: Buffer; contentType: string } | null> {
+  const rows = await sql<{ screenshot_data: Buffer | null; screenshot_content_type: string | null }[]>`
+    select screenshot_data, screenshot_content_type from facebook_group_activity where id = ${id}
+  `;
+  if (!rows[0]?.screenshot_data) return null;
+  return { data: rows[0].screenshot_data, contentType: rows[0].screenshot_content_type ?? "image/jpeg" };
+}
+
 /** Always lands as 'pending' — never counts toward the tracker until approved. Returns the entry so the caller can email the approval links. */
 export async function submitFacebookGroupEntry(input: FacebookGroupInput): Promise<FacebookGroupEntry> {
+  const screenshotData = input.screenshot?.data ?? null;
+  const screenshotContentType = input.screenshot?.contentType ?? null;
+
   const [row] = await sql<Row[]>`
     insert into facebook_group_activity (
-      constituency_id, period_start, period_end, post_count, source, has_data, status
+      constituency_id, period_start, period_end, post_count, post_url,
+      screenshot_data, screenshot_content_type, source, has_data, status
     ) values (
-      ${input.constituencyId}, ${input.periodStart}, ${input.periodEnd}, ${input.postCount},
-      'manual', false, 'pending'
+      ${input.constituencyId}, ${input.periodStart}, ${input.periodEnd}, ${input.postCount}, ${input.postUrl},
+      ${screenshotData}, ${screenshotContentType}, 'manual', false, 'pending'
     )
     on conflict (constituency_id, period_start) do update set
       period_end = excluded.period_end,
       post_count = excluded.post_count,
+      post_url = excluded.post_url,
+      screenshot_data = coalesce(excluded.screenshot_data, facebook_group_activity.screenshot_data),
+      screenshot_content_type = coalesce(excluded.screenshot_content_type, facebook_group_activity.screenshot_content_type),
       has_data = false,
       status = 'pending',
       approval_token = gen_random_uuid(),
       approved_by = null,
       approved_at = null
-    returning constituency_id, period_start::text, period_end::text, post_count, has_data, status, approval_token::text, approved_by, approved_at::text
+    returning id::text, constituency_id, period_start::text, period_end::text, post_count, post_url,
+      (screenshot_data is not null) as has_screenshot, has_data, status, approval_token::text, approved_by, approved_at::text
   `;
   const [withName] = await sql<{ constituency_name: string }[]>`
     select name as constituency_name from constituencies where id = ${row.constituency_id}

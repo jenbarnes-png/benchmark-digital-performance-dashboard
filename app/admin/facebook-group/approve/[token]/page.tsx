@@ -30,6 +30,24 @@ export default async function ApproveFacebookGroupPage({
           {entry.postCount ?? 0} Facebook group post{entry.postCount === 1 ? "" : "s"} reported for{" "}
           {formatPeriodLabel({ start: entry.periodStart, end: entry.periodEnd })}.
         </p>
+        {entry.postUrl && (
+          <a
+            href={entry.postUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+          >
+            View the post →
+          </a>
+        )}
+        {entry.hasScreenshot && (
+          // eslint-disable-next-line @next/next/no-img-element -- served from our own dynamic DB-backed route, not a static asset next/image can optimize
+          <img
+            src={`/admin/facebook-group/screenshot/${entry.id}`}
+            alt="Screenshot of the post"
+            className="mt-3 max-h-96 w-auto rounded-lg border border-black/10 dark:border-white/15"
+          />
+        )}
       </div>
 
       {entry.status !== "pending" ? (

@@ -38,6 +38,7 @@ export default async function FacebookGroupPage() {
               <th className="px-4 py-3 font-medium">Constituency</th>
               <th className="px-4 py-3 font-medium">Week</th>
               <th className="px-4 py-3 font-medium">Posts</th>
+              <th className="px-4 py-3 font-medium">Evidence</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">
                 <span className="sr-only">Actions</span>
@@ -56,6 +57,32 @@ export default async function FacebookGroupPage() {
                 </td>
                 <td className="px-4 py-3 tabular-nums">
                   {e.postCount ?? <span className="text-black/40 dark:text-white/40">—</span>}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    {e.postUrl && (
+                      <a
+                        href={e.postUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View the post"
+                        className="text-black/50 hover:text-black dark:text-white/50 dark:hover:text-white"
+                      >
+                        🔗
+                      </a>
+                    )}
+                    {e.hasScreenshot && (
+                      <Link
+                        href={`/admin/facebook-group/screenshot/${e.id}`}
+                        target="_blank"
+                        title="View screenshot"
+                        className="text-black/50 hover:text-black dark:text-white/50 dark:hover:text-white"
+                      >
+                        🖼️
+                      </Link>
+                    )}
+                    {!e.postUrl && !e.hasScreenshot && <span className="text-black/30 dark:text-white/30">—</span>}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[e.status]}`}>
@@ -89,7 +116,7 @@ export default async function FacebookGroupPage() {
             ))}
             {entries.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+                <td colSpan={6} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                   No Facebook Group posting data logged yet.
                 </td>
               </tr>
