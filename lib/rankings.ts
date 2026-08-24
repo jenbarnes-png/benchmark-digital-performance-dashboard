@@ -152,6 +152,18 @@ export async function listCohorts(): Promise<string[]> {
   return rows.map((r) => r.cohort);
 }
 
+/**
+ * Most recent sync across every real data source — not just the older
+ * manual-entry tables (organic_posts, facebook_group_activity,
+ * newsletter_sends still count, since Facebook Group and manually-
+ * reported figures are real too) but critically also the automated
+ * pipelines that actually drive most of the scoring: tiktok_videos,
+ * social_activity_daily (Facebook/Instagram), newsletter_events, and
+ * meta_leadgen_snapshot. The badge used to only check the manual-entry
+ * tables, so it could say "last updated 18 Aug" while TikTok/channel
+ * data had actually synced an hour ago — technically accurate about
+ * those four tables, but misleading as a "is this live" signal.
+ */
 export async function getLastUpdated(): Promise<string | null> {
   const [row] = await sql<{ last_updated: string | null }[]>`
     select max(t) as last_updated from (
@@ -159,6 +171,10 @@ export async function getLastUpdated(): Promise<string | null> {
       union all select max(created_at) from ad_spend
       union all select max(created_at) from facebook_group_activity
       union all select max(created_at) from newsletter_sends
+      union all select max(created_at) from tiktok_videos
+      union all select max(created_at) from social_activity_daily
+      union all select max(created_at) from newsletter_events
+      union all select max(created_at) from meta_leadgen_snapshot
     ) x
   `;
   return row?.last_updated ?? null;
@@ -1025,12 +1041,33 @@ export async function getConstituencyDetail(
   const current = index.get(periodKey(constituencyId, targetPeriod.start));
   if (!current) return null;
 
+  // Same fix as the national getLastUpdated() above — include the
+  // automated pipelines (joined via representatives, since those
+  // tables key on representative_id, not constituency_id directly),
+  // not just the manual-entry tables.
   const [lastUpdatedRow] = await sql<{ last_updated: string | null }[]>`
     select max(t) as last_updated from (
       select max(created_at) as t from organic_posts where constituency_id = ${constituencyId}
       union all select max(created_at) from ad_spend where constituency_id = ${constituencyId}
       union all select max(created_at) from facebook_group_activity where constituency_id = ${constituencyId}
       union all select max(created_at) from newsletter_sends where constituency_id = ${constituencyId}
+      union all
+        select max(tv.created_at) from tiktok_videos tv
+        join social_accounts sa on sa.id = tv.account_id and sa.ended_at is null
+        join representatives r on r.id = sa.representative_id and r.ended_at is null
+        where r.constituency_id = ${constituencyId}
+      union all
+        select max(sad.created_at) from social_activity_daily sad
+        join representatives r on r.id = sad.representative_id and r.ended_at is null
+        where r.constituency_id = ${constituencyId}
+      union all
+        select max(ne.created_at) from newsletter_events ne
+        join representatives r on r.id = ne.representative_id and r.ended_at is null
+        where r.constituency_id = ${constituencyId}
+      union all
+        select max(mls.created_at) from meta_leadgen_snapshot mls
+        join representatives r on r.id = mls.representative_id and r.ended_at is null
+        where r.constituency_id = ${constituencyId}
     ) x
   `;
 
