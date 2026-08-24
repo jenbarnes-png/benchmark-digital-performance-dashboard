@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getConstituencyDetail } from "@/lib/rankings";
 import { getAdsForConstituency } from "@/lib/ads";
-import { getCurrentSocialAccounts } from "@/lib/db";
+import { getCurrentSocialAccounts, listConstituencies } from "@/lib/db";
 import { getTiktokVideosForConstituency } from "@/lib/tiktokVideos";
 import { getRecentChannelActivity, getChannelPostsForConstituency, getLeadgenSnapshot } from "@/lib/channelActivity";
 import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
@@ -14,6 +14,7 @@ import TiktokVideoCard from "@/app/components/TiktokVideoCard";
 import ChannelPostCard from "@/app/components/ChannelPostCard";
 import AdsList from "./AdsList";
 import DreamWeekCard from "./DreamWeekCard";
+import MpSwitcher from "./MpSwitcher";
 
 const PREVIEW_COUNT = 3;
 
@@ -25,16 +26,22 @@ export default async function ConstituencyDetailPage({
   const sp = await searchParams;
   const period = typeof sp.period === "string" ? sp.period : undefined;
 
-  const [detail, ads, socialAccounts, tiktokVideos, channelActivity, channelPosts, leadgen] = await Promise.all([
-    getConstituencyDetail(id, period),
-    getAdsForConstituency(id),
-    getCurrentSocialAccounts(id),
-    getTiktokVideosForConstituency(id, PREVIEW_COUNT),
-    getRecentChannelActivity(id),
-    getChannelPostsForConstituency(id, PREVIEW_COUNT),
-    getLeadgenSnapshot(id),
-  ]);
+  const [detail, ads, socialAccounts, tiktokVideos, channelActivity, channelPosts, leadgen, allConstituencies] =
+    await Promise.all([
+      getConstituencyDetail(id, period),
+      getAdsForConstituency(id),
+      getCurrentSocialAccounts(id),
+      getTiktokVideosForConstituency(id, PREVIEW_COUNT),
+      getRecentChannelActivity(id),
+      getChannelPostsForConstituency(id, PREVIEW_COUNT),
+      getLeadgenSnapshot(id),
+      listConstituencies(),
+    ]);
   if (!detail) notFound();
+
+  const trackedConstituencies = allConstituencies
+    .filter((c) => c.is_pilot)
+    .sort((a, b) => (a.mp_or_candidate_name ?? a.name).localeCompare(b.mp_or_candidate_name ?? b.name));
 
   const { constituency, current, targetPeriod } = detail;
   const tiktokAccount = socialAccounts.find((a) => a.platform === "tiktok");
@@ -224,9 +231,12 @@ export default async function ConstituencyDetailPage({
               ))}
           </div>
         </div>
-        <div className="text-right text-sm text-black/50 dark:text-white/50">
-          <p>{targetPeriod ? formatPeriodLabel(targetPeriod) : "No activity tracked yet"}</p>
-          <p>Data last updated: {formatDateTime(detail.lastUpdated)}</p>
+        <div className="flex flex-col items-end gap-3">
+          <MpSwitcher constituencies={trackedConstituencies} currentId={id} />
+          <div className="text-right text-sm text-black/50 dark:text-white/50">
+            <p>{targetPeriod ? formatPeriodLabel(targetPeriod) : "No activity tracked yet"}</p>
+            <p>Data last updated: {formatDateTime(detail.lastUpdated)}</p>
+          </div>
         </div>
       </div>
 

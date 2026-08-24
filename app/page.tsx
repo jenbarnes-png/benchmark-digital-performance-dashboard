@@ -10,9 +10,11 @@ import {
 import { getTopTiktokVideosNational } from "@/lib/tiktokVideos";
 import { getTopChannelPostsNational } from "@/lib/channelActivity";
 import { getHexLayout } from "@/lib/hexmap";
+import { listConstituencies } from "@/lib/db";
 import HexMapToggle from "./components/HexMapToggle";
 import TiktokVideoCard from "./components/TiktokVideoCard";
 import ChannelPostCard from "./components/ChannelPostCard";
+import MpList from "./components/MpList";
 
 // Without this, Next prerenders the homepage once at build/deploy time
 // and serves that frozen snapshot forever — the hex map and TikTok
@@ -30,6 +32,7 @@ export default async function NationalDashboardPage() {
     emailStatuses,
     topTiktokVideos,
     topChannelPosts,
+    allConstituencies,
   ] = await Promise.all([
     getAdHexStatuses(),
     getTiktokHexStatuses(),
@@ -40,10 +43,14 @@ export default async function NationalDashboardPage() {
     getEmailHexStatuses(),
     getTopTiktokVideosNational(3),
     getTopChannelPostsNational(3),
+    listConstituencies(),
   ]);
   const { positions, hexSize, viewBox } = getHexLayout();
   const trackedCount = adStatuses.size;
   const activeCount = Array.from(adStatuses.values()).filter((s) => s.tier === "active").length;
+  const trackedConstituencies = allConstituencies
+    .filter((c) => c.is_pilot)
+    .sort((a, b) => (a.mp_or_candidate_name ?? a.name).localeCompare(b.mp_or_candidate_name ?? b.name));
 
   return (
     <div className="space-y-10">
@@ -56,18 +63,26 @@ export default async function NationalDashboardPage() {
         </p>
       </div>
 
-      <HexMapToggle
-        positions={positions}
-        hexSize={hexSize}
-        viewBox={viewBox}
-        overall={Array.from(overallStatuses.entries())}
-        ads={Array.from(adStatuses.entries())}
-        tiktok={Array.from(tiktokStatuses.entries())}
-        facebook={Array.from(facebookStatuses.entries())}
-        instagram={Array.from(instagramStatuses.entries())}
-        groups={Array.from(groupStatuses.entries())}
-        email={Array.from(emailStatuses.entries())}
-      />
+      <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="min-w-0 flex-1">
+          <HexMapToggle
+            positions={positions}
+            hexSize={hexSize}
+            viewBox={viewBox}
+            overall={Array.from(overallStatuses.entries())}
+            ads={Array.from(adStatuses.entries())}
+            tiktok={Array.from(tiktokStatuses.entries())}
+            facebook={Array.from(facebookStatuses.entries())}
+            instagram={Array.from(instagramStatuses.entries())}
+            groups={Array.from(groupStatuses.entries())}
+            email={Array.from(emailStatuses.entries())}
+          />
+        </div>
+        <div className="lg:w-72 lg:shrink-0">
+          <h2 className="mb-2 text-sm font-semibold text-black/60 dark:text-white/60">Tracked MPs</h2>
+          <MpList constituencies={trackedConstituencies} />
+        </div>
+      </div>
 
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Facebook &amp; Instagram shout-outs</h2>
