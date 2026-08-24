@@ -10,7 +10,30 @@ import postgres from "postgres";
 // few edits are enough to exhaust it.
 const globalForDb = globalThis as unknown as { sql?: ReturnType<typeof postgres> };
 
-export const sql = globalForDb.sql ?? postgres(process.env.DATABASE_URL!, { max: 5 });
+// On Vercel, DATABASE_URL should point at Supabase's *transaction*
+// pooler (port 6543), not the session pooler (5432) used locally.
+// Session mode hands each client its own dedicated backend connection
+// for as long as it's open — fine for one long-running dev process,
+// but Vercel runs several concurrent serverless instances, each
+// holding its own little pool, and they collectively blew through the
+// session pooler's 15-connection cap the moment more than a couple of
+// people loaded the site at once ("max clients reached in session
+// mode"). Transaction mode multiplexes many clients over a much larger
+// shared backend pool instead, which is what serverless actually needs.
+//
+// prepare: false is required for transaction-mode pooling (prepared
+// statements are tied to one physical backend connection, which
+// transaction mode doesn't guarantee you keep between queries) — it's
+// a no-op performance cost in session mode, so safe to set unconditionally.
+// max: 1 keeps each serverless instance's own footprint minimal, since
+// Vercel can spin up many instances concurrently under load; locally
+// there's just the one dev process, so a slightly bigger pool is fine.
+export const sql =
+  globalForDb.sql ??
+  postgres(process.env.DATABASE_URL!, {
+    max: process.env.VERCEL ? 1 : 5,
+    prepare: false,
+  });
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.sql = sql;
