@@ -538,7 +538,15 @@ async function buildMetricsIndex() {
 
       const groupRow = groupByKey.get(key);
       const newsletterRow = newsletterByKey.get(key);
-      const periodEndDate = new Date(periodEnd[start]);
+      // For a completed period, periodEnd is the real "as of" date to
+      // reconstruct history against. But for the CURRENT, still-in-
+      // progress period, periodEnd is this week's Sunday — a date that
+      // hasn't happened yet — so using it as-is would push every
+      // trailing window (7/30/60 days) forward into the future and
+      // silently exclude real recent activity for any day that isn't
+      // Sunday. Clamping to "now" fixes the current period without
+      // touching past ones (whose periodEnd is already <= now).
+      const periodEndDate = new Date(Math.min(new Date(periodEnd[start]).getTime(), Date.now()));
       const recencyStatus = adRecencyAsOf(constituencyId, periodEndDate);
 
       const tiktokWinnerId = bestPostWinnerFor({ start, end });
