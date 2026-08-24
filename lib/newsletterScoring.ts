@@ -1,19 +1,22 @@
-// Newsletter scoring: 1 point, on the same 0-100 scale as every other
-// scored metric (see lib/scoring.ts). Binary — sent within the last 30
-// days or not — matching the Dream Week target of "at least 1 per
-// month", not the older peer-relative newsletter_sends metric.
+// Newsletter scoring: 2 points, on the same 0-100 scale as every other
+// scored metric (see lib/scoring.ts). Calendar-month-anchored (since
+// the 1st) rather than a rolling 30-day window, matching how Jen
+// actually wants "sent this month" judged. A 3rd point for subscriber
+// list growth is planned but not yet scored — there's no subscriber-
+// count data source wired up yet (see lib/dreamWeek.ts's untracked
+// "subscribers" item).
 
-export const NEWSLETTER_MAX_POINTS = 1;
+export const NEWSLETTER_MAX_POINTS = 2;
 
 /** hasData-aware wrapper, same shape as adRecency's scoreForAdRecency — a
- * constituency with no newsletter data synced earns 0 of this 1 point
+ * constituency with no newsletter data synced earns 0 of these 2 points
  * rather than being excluded from the total (see lib/scoring.ts). */
-export function scoreForNewsletter(params: { hasAccount: boolean; sentInLast30Days: boolean }): {
+export function scoreForNewsletter(params: { hasAccount: boolean; sentThisCalendarMonth: boolean }): {
   hasData: boolean;
   score: number | null;
   maxPoints: number;
 } {
   const maxPoints = NEWSLETTER_MAX_POINTS;
   if (!params.hasAccount) return { hasData: false, score: null, maxPoints };
-  return { hasData: true, score: params.sentInLast30Days ? 100 : 0, maxPoints };
+  return { hasData: true, score: params.sentThisCalendarMonth ? 100 : 0, maxPoints };
 }

@@ -2,6 +2,7 @@ import { AD_RECENCY_POINTS } from "@/lib/adRecency";
 import { TIKTOK_MAX_POINTS } from "@/lib/tiktokScoring";
 import { CHANNEL_MAX_POINTS } from "@/lib/channelScoring";
 import { NEWSLETTER_MAX_POINTS } from "@/lib/newsletterScoring";
+import { GROUP_MAX_POINTS } from "@/lib/groupScoring";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -109,14 +110,42 @@ export default function ScoringPage() {
         </p>
         <p>
           Sourced from the same internal data warehouse. Scored out of {NEWSLETTER_MAX_POINTS}{" "}
-          point:
+          points:
         </p>
         <ul className="ml-4 list-disc space-y-1">
-          <li>Sent within the last 30 days — 1 point</li>
+          <li>Sent since the 1st of this calendar month — 2 points</li>
         </ul>
         <p className="text-xs text-black/50 dark:text-white/50">
-          Matches the Dream Week target of at least one newsletter a month.
+          A 3rd point for growing the subscriber list by 20+ this month is planned, but not
+          scored yet — there&apos;s no subscriber-count data source connected.
         </p>
+      </Section>
+
+      <Section title="Facebook Group posts">
+        <p className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+          Manual entry, needs approval
+        </p>
+        <p>
+          Logged by hand in Admin and approved by Jen or Alex before it counts — see{" "}
+          <a href="/admin/facebook-group" className="underline hover:text-black dark:hover:text-white">
+            Facebook Group manual reporting
+          </a>
+          . Scored out of {GROUP_MAX_POINTS} points, for the current week:
+        </p>
+        <ul className="ml-4 list-disc space-y-1">
+          <li>
+            <span className="font-medium text-red-600 dark:text-red-400">🔴 0 posts</span> — 0
+            points
+          </li>
+          <li>
+            <span className="font-medium text-amber-600 dark:text-amber-400">🟠 1 post</span> — 1
+            point
+          </li>
+          <li>
+            <span className="font-medium text-emerald-600 dark:text-emerald-400">🟢 2+ posts</span>{" "}
+            — {GROUP_MAX_POINTS} points
+          </li>
+        </ul>
       </Section>
 
       <Section title="TikTok">
@@ -140,13 +169,14 @@ export default function ScoringPage() {
         </p>
       </Section>
 
-      <Section title="Organic posting (manual entry), group activity & newsletter">
+      <Section title="Organic posting (manual entry) & newsletter sends">
         <p>
           Scored relative to the best-performing pilot constituency that week — the top count
           scores 100, everyone else scales proportionally. A placeholder until better benchmarks
           exist, and separate from the automated Facebook &amp; Instagram score above — this
-          covers manually-reported organic post counts, Facebook group posts, and newsletter
-          sends, and doesn&apos;t currently count toward the overall points total.
+          covers manually-reported organic post counts (superseded by the automated score, kept
+          for reference) and manually-reported newsletter sends (a different table from the
+          automated Newsletter score above). Doesn&apos;t count toward the overall points total.
         </p>
       </Section>
 

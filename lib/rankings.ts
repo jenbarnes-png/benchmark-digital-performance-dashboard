@@ -10,13 +10,14 @@ import {
 } from "./tiktokScoring";
 import { scoreForChannel, CHANNEL_MAX_POINTS } from "./channelScoring";
 import { scoreForNewsletter, NEWSLETTER_MAX_POINTS } from "./newsletterScoring";
+import { scoreForGroup, GROUP_MAX_POINTS } from "./groupScoring";
 
 // Used only when literally nothing has been tracked yet (periods.length
 // === 0 below) — the real total is always computed from the actual
 // metrics array via totalPossiblePoints, this is just its value before
 // any metrics exist to sum.
 const FALLBACK_MAX_POINTS =
-  AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS + CHANNEL_MAX_POINTS + NEWSLETTER_MAX_POINTS;
+  AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS + CHANNEL_MAX_POINTS + NEWSLETTER_MAX_POINTS + GROUP_MAX_POINTS;
 
 export type Period = { start: string; end: string };
 
@@ -671,8 +672,12 @@ async function buildMetricsIndex() {
         key: "newsletterActivity",
         ...scoreForNewsletter({
           hasAccount: point.newsletterActivity.hasAccount,
-          sentInLast30Days: point.newsletterActivity.sentInLast30Days,
+          sentThisCalendarMonth: point.newsletterActivity.sentThisCalendarMonth,
         }),
+      },
+      {
+        key: "groupPoints",
+        ...scoreForGroup({ hasAccount: point.group.hasData, postCount: point.group.postCount }),
       },
     ];
 
