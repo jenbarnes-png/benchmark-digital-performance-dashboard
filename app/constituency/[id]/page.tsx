@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getConstituencyDetail } from "@/lib/rankings";
 import { getAdsForConstituency } from "@/lib/ads";
 import { getCurrentSocialAccounts } from "@/lib/db";
@@ -9,19 +10,12 @@ import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import { tierForCount, untrackedItem, type DreamWeekItem } from "@/lib/dreamWeek";
 import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
-import { platformColor } from "@/app/components/platformColors";
 import TiktokVideoCard from "@/app/components/TiktokVideoCard";
 import ChannelPostCard from "@/app/components/ChannelPostCard";
-import MetricCard from "./MetricCard";
-import ActivityCharts from "./ActivityCharts";
 import AdsList from "./AdsList";
 import DreamWeekCard from "./DreamWeekCard";
 
-// TikTok isn't in this list: its manually-entered organic_posts count
-// would sit right above the real automated TikTok section (follower
-// count + videos) further down this page and always read "No data
-// reported", which contradicts the real data directly below it.
-const ORGANIC_PLATFORMS = ["Facebook", "Instagram", "YouTube"];
+const PREVIEW_COUNT = 3;
 
 export default async function ConstituencyDetailPage({
   params,
@@ -35,9 +29,9 @@ export default async function ConstituencyDetailPage({
     getConstituencyDetail(id, period),
     getAdsForConstituency(id),
     getCurrentSocialAccounts(id),
-    getTiktokVideosForConstituency(id),
+    getTiktokVideosForConstituency(id, PREVIEW_COUNT),
     getRecentChannelActivity(id),
-    getChannelPostsForConstituency(id),
+    getChannelPostsForConstituency(id, PREVIEW_COUNT),
     getLeadgenSnapshot(id),
   ]);
   if (!detail) notFound();
@@ -275,78 +269,36 @@ export default async function ConstituencyDetailPage({
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Platform breakdown</h2>
-        <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          {targetPeriod ? `For ${formatPeriodLabel(targetPeriod)}` : "No data reported yet"}
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {ORGANIC_PLATFORMS.map((platform) => {
-            const p = current.organic.byPlatform.find((x) => x.platform === platform);
-            return (
-              <MetricCard
-                key={platform}
-                title={platform}
-                accentColor={platformColor(platform)}
-                hasData={p?.hasData ?? false}
-                primary={`${p?.postCount ?? 0} posts`}
-              />
-            );
-          })}
-          <MetricCard
-            title={`Paid advertising (last ${RECENT_WINDOW_DAYS} days)`}
-            hasData={current.adSpend.hasData}
-            primary={
-              current.adSpend.target > 0
-                ? `£${current.adSpend.spent.toLocaleString()} of £${current.adSpend.target.toLocaleString()}`
-                : `£${current.adSpend.spent.toLocaleString()} spent`
-            }
-            secondary={
-              current.adSpend.hasData
-                ? current.adSpend.target > 0
-                  ? `${Math.round((current.adSpend.spent / current.adSpend.target) * 100)}% of target`
-                  : "No target set"
-                : undefined
-            }
-          />
-          <MetricCard
-            title="Facebook group activity"
-            hasData={current.group.hasData}
-            primary={`${current.group.postCount} posts`}
-          />
-          <MetricCard
-            title="Newsletter"
-            hasData={current.newsletter.hasData}
-            primary={`${current.newsletter.sendCount} sent this week`}
-          />
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-semibold tracking-tight">Currently running ads</h2>
+          {ads.length > PREVIEW_COUNT && (
+            <Link
+              href={`/constituency/${id}/ads`}
+              className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            >
+              See all {ads.length} ads →
+            </Link>
+          )}
         </div>
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight">Activity over time</h2>
-        {detail.history.length > 0 ? (
-          <div className="mt-4 rounded-lg border border-black/10 p-4 dark:border-white/15">
-            <ActivityCharts history={detail.history} />
-          </div>
-        ) : (
-          <p className="mt-4 rounded-lg border border-dashed border-black/20 p-6 text-center text-sm text-black/50 dark:border-white/20 dark:text-white/50">
-            Charts will appear here once activity has been tracked for a few weeks.
-          </p>
-        )}
-      </div>
-
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight">Paid advertising — individual ads</h2>
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">
           From Meta&apos;s public Ad Library, active in the last {RECENT_WINDOW_DAYS} days, most recent first.
         </p>
         <div className="mt-4">
-          <AdsList ads={ads} />
+          <AdsList ads={ads.slice(0, PREVIEW_COUNT)} />
         </div>
       </div>
 
       {channelActivity.hasAnyChannelData && (
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Facebook &amp; Instagram</h2>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-lg font-semibold tracking-tight">Facebook &amp; Instagram</h2>
+            <Link
+              href={`/constituency/${id}/posts`}
+              className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            >
+              See all posts →
+            </Link>
+          </div>
           <p className="mt-1 text-sm text-black/60 dark:text-white/60">
             Top posts in the last 30 days, ranked by reach.
           </p>
@@ -368,11 +320,19 @@ export default async function ConstituencyDetailPage({
         <div>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-lg font-semibold tracking-tight">TikTok</h2>
-            {tiktokAccount.follower_count !== null && (
-              <span className="text-sm text-black/60 dark:text-white/60">
-                {tiktokAccount.follower_count.toLocaleString()} followers
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {tiktokAccount.follower_count !== null && (
+                <span className="text-sm text-black/60 dark:text-white/60">
+                  {tiktokAccount.follower_count.toLocaleString()} followers
+                </span>
+              )}
+              <Link
+                href={`/constituency/${id}/tiktok`}
+                className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+              >
+                See all videos →
+              </Link>
+            </div>
           </div>
           <p className="mt-1 text-sm text-black/60 dark:text-white/60">
             Top videos in the last {RECENT_WINDOW_DAYS} days, ranked by views.
