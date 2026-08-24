@@ -1,6 +1,7 @@
 import { AD_RECENCY_POINTS } from "@/lib/adRecency";
 import { TIKTOK_MAX_POINTS } from "@/lib/tiktokScoring";
 import { CHANNEL_MAX_POINTS } from "@/lib/channelScoring";
+import { NEWSLETTER_MAX_POINTS } from "@/lib/newsletterScoring";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -99,6 +100,22 @@ export default function ScoringPage() {
         </ul>
         <p className="text-xs text-black/50 dark:text-white/50">
           Not one point per post — just whether it happened at all in the last 7 days.
+        </p>
+      </Section>
+
+      <Section title="Newsletter">
+        <p className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+          Live for the 28 pilot MPs
+        </p>
+        <p>
+          Sourced from the same internal data warehouse. Scored out of {NEWSLETTER_MAX_POINTS}{" "}
+          point:
+        </p>
+        <ul className="ml-4 list-disc space-y-1">
+          <li>Sent within the last 30 days — 1 point</li>
+        </ul>
+        <p className="text-xs text-black/50 dark:text-white/50">
+          Matches the Dream Week target of at least one newsletter a month.
         </p>
       </Section>
 

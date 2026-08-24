@@ -17,6 +17,7 @@ type SortKey =
   | "tiktokReach"
   | "channelReel"
   | "channelPosted"
+  | "newsletterSent"
   | "change";
 type SortDir = "asc" | "desc";
 
@@ -31,6 +32,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   tiktokReach: "desc",
   channelReel: "desc",
   channelPosted: "desc",
+  newsletterSent: "desc",
   change: "desc",
 };
 
@@ -94,6 +96,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       tiktokReach: r.tiktok.hasData ? r.tiktok.reach : -1,
       channelReel: r.channel.hasData ? (r.channel.reelIn7Days ? 1 : 0) : -1,
       channelPosted: r.channel.hasData ? (r.channel.postedIn7Days ? 1 : 0) : -1,
+      newsletterSent: r.newsletterActivity.hasData ? (r.newsletterActivity.sentInLast30Days ? 1 : 0) : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
     withKeys.sort((a, b) => {
@@ -122,6 +125,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["TikTok reach (last 30 days)", "tiktokReach"],
                 ["Reel (last 7 days)", "channelReel"],
                 ["Posted FB/IG (last 7 days)", "channelPosted"],
+                ["Newsletter (last 30 days)", "newsletterSent"],
                 ["Change", "change"],
               ] as [string, SortKey][]
             ).map(([label, key]) => (
@@ -219,13 +223,25 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 )}
               </td>
               <td className="px-4 py-3">
+                {!r.newsletterActivity.hasData ? (
+                  <span className="text-black/40 dark:text-white/40">—</span>
+                ) : r.newsletterActivity.sentInLast30Days ? (
+                  <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                    Yes
+                  </span>
+                ) : (
+                  <span className="text-black/50 dark:text-white/50">No</span>
+                )}
+              </td>
+              <td className="px-4 py-3">
                 <ChangeIndicator delta={r.change.delta} direction={r.change.direction} />
               </td>
             </tr>
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={11} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={12} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
