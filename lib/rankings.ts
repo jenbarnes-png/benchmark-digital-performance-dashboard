@@ -216,6 +216,8 @@ export type PeriodMetrics = {
     hasData: boolean;
     /** Sent within the 30 days before this period ended. */
     sentInLast30Days: boolean;
+    /** Sent since the 1st of the calendar month this period ended in. */
+    sentThisCalendarMonth: boolean;
   };
 };
 
@@ -404,15 +406,26 @@ async function buildMetricsIndex() {
 
   /** Sent-within-30-days as of a given date — same trailing-window
    * approach as channelActivityAsOf, matching the Dream Week target of
-   * "at least 1 per month". */
-  function newsletterActivityAsOf(constituencyId: string, referenceDate: Date): { sentInLast30Days: boolean } {
+   * "at least 1 per month". Also reports sentThisCalendarMonth — a
+   * separate, calendar-anchored view ("since the 1st") rather than a
+   * rolling 30-day window, for the Rankings column of the same name;
+   * it doesn't feed the points score. */
+  function newsletterActivityAsOf(
+    constituencyId: string,
+    referenceDate: Date
+  ): { sentInLast30Days: boolean; sentThisCalendarMonth: boolean } {
     const cutoff = new Date(referenceDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), 1));
     const events = newsletterEventsByConstituency.get(constituencyId) ?? [];
-    const sentInLast30Days = events.some((receivedAt) => {
+    let sentInLast30Days = false;
+    let sentThisCalendarMonth = false;
+    for (const receivedAt of events) {
       const date = new Date(receivedAt);
-      return date <= referenceDate && date >= cutoff;
-    });
-    return { sentInLast30Days };
+      if (date > referenceDate) continue;
+      if (date >= cutoff) sentInLast30Days = true;
+      if (date >= monthStart) sentThisCalendarMonth = true;
+    }
+    return { sentInLast30Days, sentThisCalendarMonth };
   }
 
   const advertiserConstituencyIds = new Set(advertiserRows.map((r) => r.constituency_id));
@@ -508,6 +521,7 @@ async function buildMetricsIndex() {
     newsletterActivity: {
       hasAccount: boolean;
       sentInLast30Days: boolean;
+      sentThisCalendarMonth: boolean;
     };
   };
   const rawPoints: RawPoint[] = [];
@@ -599,6 +613,7 @@ async function buildMetricsIndex() {
         newsletterActivity: {
           hasAccount: newsletterAccountConstituencyIds.has(constituencyId),
           sentInLast30Days: newsletterActivityInfo.sentInLast30Days,
+          sentThisCalendarMonth: newsletterActivityInfo.sentThisCalendarMonth,
         },
       });
     }
@@ -688,6 +703,7 @@ async function buildMetricsIndex() {
         points: point.newsletterActivity.sentInLast30Days ? 1 : 0,
         hasData: point.newsletterActivity.hasAccount,
         sentInLast30Days: point.newsletterActivity.sentInLast30Days,
+        sentThisCalendarMonth: point.newsletterActivity.sentThisCalendarMonth,
       },
     });
   }
@@ -706,7 +722,7 @@ export type RankingRow = {
   adLive: boolean;
   tiktok: { hasData: boolean; reach: number; postedInLast30Days: boolean; postedInLast7Days: boolean };
   channel: { hasData: boolean; reelIn7Days: boolean; postedIn7Days: boolean };
-  newsletterActivity: { hasData: boolean; sentInLast30Days: boolean };
+  newsletterActivity: { hasData: boolean; sentInLast30Days: boolean; sentThisCalendarMonth: boolean };
   /** Manually-reported Facebook group posts this week — see facebook_group_activity. */
   group: { hasData: boolean; postCount: number };
 };
@@ -750,7 +766,7 @@ export async function getRankings(filters: {
         adLive: false,
         tiktok: { hasData: false, reach: 0, postedInLast30Days: false, postedInLast7Days: false },
         channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
-        newsletterActivity: { hasData: false, sentInLast30Days: false },
+        newsletterActivity: { hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
         group: { hasData: false, postCount: 0 },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
@@ -787,7 +803,11 @@ export async function getRankings(filters: {
         adLive: currentMetrics?.adSpend.recencyStatus === "active",
         tiktok: currentMetrics?.tiktok ?? { hasData: false, reach: 0, postedInLast30Days: false, postedInLast7Days: false },
         channel: currentMetrics?.channel ?? { hasData: false, reelIn7Days: false, postedIn7Days: false },
-        newsletterActivity: currentMetrics?.newsletterActivity ?? { hasData: false, sentInLast30Days: false },
+        newsletterActivity: currentMetrics?.newsletterActivity ?? {
+          hasData: false,
+          sentInLast30Days: false,
+          sentThisCalendarMonth: false,
+        },
         group: currentMetrics?.group ?? { hasData: false, postCount: 0 },
       };
     });
@@ -811,7 +831,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
     postedInLast7Days: false,
   },
   channel: { points: 0, hasData: false, reelIn7Days: false, postedIn7Days: false },
-  newsletterActivity: { points: 0, hasData: false, sentInLast30Days: false },
+  newsletterActivity: { points: 0, hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
 };
 
 export type ConstituencyDetail = {

@@ -19,6 +19,7 @@ type SortKey =
   | "channelReel"
   | "channelPosted"
   | "newsletterSent"
+  | "newsletterMonth"
   | "groupPosts"
   | "change";
 type SortDir = "asc" | "desc";
@@ -36,6 +37,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   channelReel: "desc",
   channelPosted: "desc",
   newsletterSent: "desc",
+  newsletterMonth: "desc",
   groupPosts: "desc",
   change: "desc",
 };
@@ -114,6 +116,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       channelReel: r.channel.hasData ? (r.channel.reelIn7Days ? 1 : 0) : -1,
       channelPosted: r.channel.hasData ? (r.channel.postedIn7Days ? 1 : 0) : -1,
       newsletterSent: r.newsletterActivity.hasData ? (r.newsletterActivity.sentInLast30Days ? 1 : 0) : -1,
+      newsletterMonth: r.newsletterActivity.hasData ? (r.newsletterActivity.sentThisCalendarMonth ? 1 : 0) : -1,
       groupPosts: r.group.hasData ? r.group.postCount : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
@@ -145,6 +148,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Reel (last 7 days)", "channelReel"],
                 ["Posted FB/IG (last 7 days)", "channelPosted"],
                 ["Newsletter (last 30 days)", "newsletterSent"],
+                ["Newsletter sent this month", "newsletterMonth"],
                 ["Facebook group posts (manual)", "groupPosts"],
                 ["Change", "change"],
               ] as [string, SortKey][]
@@ -214,6 +218,12 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
               <td className="px-4 py-3">
                 <YesNoCell hasData={r.newsletterActivity.hasData} value={r.newsletterActivity.sentInLast30Days} />
               </td>
+              <td className="px-4 py-3">
+                <YesNoCell
+                  hasData={r.newsletterActivity.hasData}
+                  value={r.newsletterActivity.sentThisCalendarMonth}
+                />
+              </td>
               <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
                 {r.group.hasData ? formatCount(r.group.postCount) : "—"}
               </td>
@@ -224,7 +234,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={13} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={14} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
