@@ -3,6 +3,7 @@ import { getConstituencyDetail } from "@/lib/rankings";
 import { getAdsForConstituency } from "@/lib/ads";
 import { getCurrentSocialAccounts } from "@/lib/db";
 import { getTiktokVideosForConstituency } from "@/lib/tiktokVideos";
+import { getRecentChannelActivity, getChannelPostsForConstituency, getLeadgenSnapshot } from "@/lib/channelActivity";
 import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import { tierForCount, untrackedItem, type DreamWeekItem } from "@/lib/dreamWeek";
@@ -10,6 +11,7 @@ import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
 import { platformColor } from "@/app/components/platformColors";
 import TiktokVideoCard from "@/app/components/TiktokVideoCard";
+import ChannelPostCard from "@/app/components/ChannelPostCard";
 import MetricCard from "./MetricCard";
 import ActivityCharts from "./ActivityCharts";
 import AdsList from "./AdsList";
@@ -29,11 +31,14 @@ export default async function ConstituencyDetailPage({
   const sp = await searchParams;
   const period = typeof sp.period === "string" ? sp.period : undefined;
 
-  const [detail, ads, socialAccounts, tiktokVideos] = await Promise.all([
+  const [detail, ads, socialAccounts, tiktokVideos, channelActivity, channelPosts, leadgen] = await Promise.all([
     getConstituencyDetail(id, period),
     getAdsForConstituency(id),
     getCurrentSocialAccounts(id),
     getTiktokVideosForConstituency(id),
+    getRecentChannelActivity(id),
+    getChannelPostsForConstituency(id),
+    getLeadgenSnapshot(id),
   ]);
   if (!detail) notFound();
 
@@ -43,17 +48,13 @@ export default async function ConstituencyDetailPage({
   // The Dream Week checklist (see /scoring) — deliberately independent
   // of Overall score/Rankings. Items with no real data source yet are
   // marked "unknown" rather than guessed at.
-  const fbPosts = current.organic.byPlatform.find((p) => p.platform === "Facebook");
-  const igPosts = current.organic.byPlatform.find((p) => p.platform === "Instagram");
-  const hasOrganicData = (fbPosts?.hasData ?? false) || (igPosts?.hasData ?? false);
-  const organicCount = (fbPosts?.hasData ? fbPosts.postCount : 0) + (igPosts?.hasData ? igPosts.postCount : 0);
-  const organicItem: DreamWeekItem = hasOrganicData
+  const organicItem: DreamWeekItem = channelActivity.hasAnyChannelData
     ? {
         key: "organic",
         title: "Organic Facebook & Instagram posts",
         target: "5 per week",
-        ...tierForCount(organicCount, 5),
-        detail: `${organicCount} of 5 this week`,
+        ...tierForCount(channelActivity.organicPosts7d, 5),
+        detail: `${channelActivity.organicPosts7d} in the last 7 days`,
       }
     : untrackedItem("organic", "Organic Facebook & Instagram posts", "5 per week", "No data yet");
 
@@ -84,21 +85,60 @@ export default async function ConstituencyDetailPage({
     "Can't distinguish post type from a post count yet"
   );
 
-  const AD_TIER = {
-    active: { tier: "green" as const, points: 2, detail: "Ad running now" },
-    recent: { tier: "amber" as const, points: 1, detail: "Ran recently, not running now" },
-    stale: { tier: "red" as const, points: 0, detail: "No recent ad activity" },
-    no_advertiser: { tier: "unknown" as const, points: 0, detail: "No advertiser matched yet" },
-  };
-  const adInfo = AD_TIER[current.adSpend.recencyStatus];
-  const adItem: DreamWeekItem = {
-    key: "ads",
-    title: "Always-on ad campaign (~£100/month)",
-    target: "Active, roughly £100/month",
-    tier: adInfo.tier,
-    points: adInfo.points,
-    detail: adInfo.detail,
-  };
+  // The real "Lead Generation ad" signal from Hani's ads tracking takes
+  // priority when available — the public Ad Library data behind
+  // adSpend.recencyStatus can't tell campaign objective apart, so a
+  // generically-active ad isn't proof of the specific Lead Gen ad this
+  // benchmark asks for. Falls back to that general signal only when we
+  // have no lead-gen data for this rep at all.
+  let adItem: DreamWeekItem;
+  if (leadgen.hasData) {
+    const spend = leadgen.spendMtd ?? 0;
+    if (leadgen.leadsActive && spend >= 50) {
+      adItem = {
+        key: "ads",
+        title: "Always-on ad campaign (~£100/month)",
+        target: "Active, roughly £100/month",
+        tier: "green",
+        points: 2,
+        detail: `Lead Gen ad active, £${spend.toFixed(0)} spent this month`,
+      };
+    } else if (leadgen.leadsActive) {
+      adItem = {
+        key: "ads",
+        title: "Always-on ad campaign (~£100/month)",
+        target: "Active, roughly £100/month",
+        tier: "amber",
+        points: 1,
+        detail: `Lead Gen ad active, £${spend.toFixed(0)} spent this month so far`,
+      };
+    } else {
+      adItem = {
+        key: "ads",
+        title: "Always-on ad campaign (~£100/month)",
+        target: "Active, roughly £100/month",
+        tier: "red",
+        points: 0,
+        detail: "No Lead Generation ad active",
+      };
+    }
+  } else {
+    const AD_TIER = {
+      active: { tier: "green" as const, points: 2, detail: "Ad running now (general activity, no Lead Gen data yet)" },
+      recent: { tier: "amber" as const, points: 1, detail: "Ran recently, not running now" },
+      stale: { tier: "red" as const, points: 0, detail: "No recent ad activity" },
+      no_advertiser: { tier: "unknown" as const, points: 0, detail: "No advertiser matched yet" },
+    };
+    const adInfo = AD_TIER[current.adSpend.recencyStatus];
+    adItem = {
+      key: "ads",
+      title: "Always-on ad campaign (~£100/month)",
+      target: "Active, roughly £100/month",
+      tier: adInfo.tier,
+      points: adInfo.points,
+      detail: adInfo.detail,
+    };
+  }
 
   const groupItem: DreamWeekItem = current.group.hasData
     ? {
@@ -123,17 +163,16 @@ export default async function ConstituencyDetailPage({
     "Target not yet defined"
   );
 
-  const recentHistory = detail.history.slice(-4);
-  const anyNewsletterData = recentHistory.some((h) => h.newsletter.hasData);
-  const sentRecently = recentHistory.some((h) => h.newsletter.hasData && h.newsletter.sendCount > 0);
-  const newsletterItem: DreamWeekItem = anyNewsletterData
+  const newsletterItem: DreamWeekItem = channelActivity.hasNewsletterData
     ? {
         key: "newsletter",
         title: "Monthly email newsletter",
         target: "At least 1 per month",
-        tier: sentRecently ? "green" : "red",
-        points: sentRecently ? 2 : 0,
-        detail: sentRecently ? "Sent within the last ~4 weeks" : "None sent in the last ~4 weeks",
+        tier: channelActivity.newsletterInLast30Days ? "green" : "red",
+        points: channelActivity.newsletterInLast30Days ? 2 : 0,
+        detail: channelActivity.newsletterInLast30Days
+          ? "Sent within the last 30 days"
+          : "None sent in the last 30 days",
       }
     : untrackedItem("newsletter", "Monthly email newsletter", "At least 1 per month", "No data yet");
 
@@ -304,6 +343,26 @@ export default async function ConstituencyDetailPage({
           <AdsList ads={ads} />
         </div>
       </div>
+
+      {channelActivity.hasAnyChannelData && (
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Facebook &amp; Instagram</h2>
+          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
+            Top posts in the last 30 days, ranked by reach.
+          </p>
+          {channelPosts.length > 0 ? (
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {channelPosts.map((post) => (
+                <ChannelPostCard key={post.id} post={post} showMp={false} />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-lg border border-dashed border-black/20 p-6 text-center text-sm text-black/50 dark:border-white/20 dark:text-white/50">
+              No posts in the last 30 days.
+            </p>
+          )}
+        </div>
+      )}
 
       {tiktokAccount && (
         <div>
