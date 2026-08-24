@@ -1,6 +1,6 @@
 import { listConstituencies } from "@/lib/db";
-import OrganicPostForm from "../OrganicPostForm";
-import { saveOrganicPostsAction } from "../actions";
+import FacebookGroupForm from "../FacebookGroupForm";
+import { submitFacebookGroupAction } from "../actions";
 
 function mondayOnOrBefore(date: Date): string {
   const d = new Date(date);
@@ -10,20 +10,20 @@ function mondayOnOrBefore(date: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default async function NewOrganicPostPage() {
+export default async function NewFacebookGroupPage() {
   const constituencies = await listConstituencies();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Log posts for a week</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Log Facebook Group posts for a week</h1>
         <p className="mt-2 max-w-md text-black/70 dark:text-white/70">
-          Enter the number of Facebook and Instagram posts for one constituency, for the
-          Monday-starting week you choose.
+          Enter the number of Facebook Group posts for one constituency, for the Monday-starting
+          week you choose. Sent for approval before it counts.
         </p>
       </div>
-      <OrganicPostForm
-        action={saveOrganicPostsAction}
+      <FacebookGroupForm
+        action={submitFacebookGroupAction}
         constituencies={constituencies}
         lockKey={false}
         defaultPeriodStart={mondayOnOrBefore(new Date())}

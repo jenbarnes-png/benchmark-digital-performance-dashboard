@@ -3,10 +3,10 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import type { Constituency } from "@/lib/db";
-import type { OrganicPostEntry } from "@/lib/organicPosts";
+import type { FacebookGroupEntry } from "@/lib/facebookGroupActivity";
 import type { FormState } from "./actions";
 
-export default function OrganicPostForm({
+export default function FacebookGroupForm({
   action,
   constituencies,
   initialValues,
@@ -15,7 +15,7 @@ export default function OrganicPostForm({
 }: {
   action: (prevState: FormState, formData: FormData) => Promise<FormState>;
   constituencies: Constituency[];
-  initialValues?: OrganicPostEntry;
+  initialValues?: FacebookGroupEntry;
   defaultPeriodStart: string;
   /** True when editing an existing entry — constituency/week are the
    * record's identity, so they're locked rather than left free to
@@ -68,36 +68,25 @@ export default function OrganicPostForm({
       </div>
 
       <div>
-        <label htmlFor="facebookPostCount" className="block text-sm font-medium">
-          Facebook posts this week
+        <label htmlFor="postCount" className="block text-sm font-medium">
+          Facebook group posts this week
         </label>
         <input
-          id="facebookPostCount"
-          name="facebookPostCount"
+          id="postCount"
+          name="postCount"
           type="number"
           min={0}
           step={1}
-          defaultValue={initialValues?.counts.Facebook.postCount ?? ""}
+          defaultValue={initialValues?.postCount ?? ""}
           placeholder="Leave blank if not tracked this week"
           className="mt-1 w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
         />
       </div>
 
-      <div>
-        <label htmlFor="instagramPostCount" className="block text-sm font-medium">
-          Instagram posts this week
-        </label>
-        <input
-          id="instagramPostCount"
-          name="instagramPostCount"
-          type="number"
-          min={0}
-          step={1}
-          defaultValue={initialValues?.counts.Instagram.postCount ?? ""}
-          placeholder="Leave blank if not tracked this week"
-          className="mt-1 w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
-        />
-      </div>
+      <p className="text-sm text-black/60 dark:text-white/60">
+        Saving sends jenbarnes@fouroneone.co.uk and alexcreighton@fouroneone.co.uk an email to
+        approve — it won&apos;t count on the tracker until then.
+      </p>
 
       {state?.error && <p className="text-sm text-red-700 dark:text-red-400">{state.error}</p>}
 
@@ -107,10 +96,10 @@ export default function OrganicPostForm({
           disabled={pending}
           className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? "Saving…" : "Save & send for approval"}
         </button>
         <Link
-          href="/admin/organic-posts"
+          href="/admin/facebook-group"
           className="text-sm font-medium text-black/70 hover:underline dark:text-white/70"
         >
           Cancel

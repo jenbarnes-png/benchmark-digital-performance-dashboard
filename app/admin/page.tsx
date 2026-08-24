@@ -8,9 +8,9 @@ const sections = [
     available: true,
   },
   {
-    href: "/admin/organic-posts",
-    label: "Organic posting (Facebook & Instagram)",
-    description: "Log weekly post counts by hand — feeds each constituency's platform breakdown.",
+    href: "/admin/facebook-group",
+    label: "Facebook Group manual reporting",
+    description: "Log weekly Facebook Group post counts by hand — needs Jen or Alex's approval before it counts.",
     available: true,
   },
   {
