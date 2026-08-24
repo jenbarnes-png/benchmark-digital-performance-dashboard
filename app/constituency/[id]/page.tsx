@@ -5,6 +5,7 @@ import { getCurrentSocialAccounts } from "@/lib/db";
 import { getTiktokVideosForConstituency } from "@/lib/tiktokVideos";
 import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
+import { tierForCount, untrackedItem, type DreamWeekItem } from "@/lib/dreamWeek";
 import ScoreBar from "@/app/components/ScoreBar";
 import ChangeIndicator from "@/app/components/ChangeIndicator";
 import { platformColor } from "@/app/components/platformColors";
@@ -12,6 +13,7 @@ import TiktokVideoCard from "@/app/components/TiktokVideoCard";
 import MetricCard from "./MetricCard";
 import ActivityCharts from "./ActivityCharts";
 import AdsList from "./AdsList";
+import DreamWeekCard from "./DreamWeekCard";
 
 // TikTok isn't in this list: its manually-entered organic_posts count
 // would sit right above the real automated TikTok section (follower
@@ -37,6 +39,122 @@ export default async function ConstituencyDetailPage({
 
   const { constituency, current, targetPeriod } = detail;
   const tiktokAccount = socialAccounts.find((a) => a.platform === "tiktok");
+
+  // The Dream Week checklist (see /scoring) — deliberately independent
+  // of Overall score/Rankings. Items with no real data source yet are
+  // marked "unknown" rather than guessed at.
+  const fbPosts = current.organic.byPlatform.find((p) => p.platform === "Facebook");
+  const igPosts = current.organic.byPlatform.find((p) => p.platform === "Instagram");
+  const hasOrganicData = (fbPosts?.hasData ?? false) || (igPosts?.hasData ?? false);
+  const organicCount = (fbPosts?.hasData ? fbPosts.postCount : 0) + (igPosts?.hasData ? igPosts.postCount : 0);
+  const organicItem: DreamWeekItem = hasOrganicData
+    ? {
+        key: "organic",
+        title: "Organic Facebook & Instagram posts",
+        target: "5 per week",
+        ...tierForCount(organicCount, 5),
+        detail: `${organicCount} of 5 this week`,
+      }
+    : untrackedItem("organic", "Organic Facebook & Instagram posts", "5 per week", "No data yet");
+
+  let tiktokWeekCount = 0;
+  if (targetPeriod) {
+    const rangeStart = new Date(targetPeriod.start);
+    const rangeEnd = new Date(targetPeriod.end);
+    rangeEnd.setUTCHours(23, 59, 59, 999);
+    tiktokWeekCount = tiktokVideos.filter((v) => {
+      const posted = new Date(v.postedAt);
+      return posted >= rangeStart && posted <= rangeEnd;
+    }).length;
+  }
+  const tiktokItem: DreamWeekItem = tiktokAccount
+    ? {
+        key: "tiktok-count",
+        title: "TikToks posted",
+        target: "2 per week",
+        ...tierForCount(tiktokWeekCount, 2),
+        detail: `${tiktokWeekCount} of 2 this week`,
+      }
+    : untrackedItem("tiktok-count", "TikToks posted", "2 per week", "No TikTok account matched yet");
+
+  const selfieItem = untrackedItem(
+    "selfie",
+    "Localised selfie video (Facebook)",
+    "1 per week",
+    "Can't distinguish post type from a post count yet"
+  );
+
+  const AD_TIER = {
+    active: { tier: "green" as const, points: 2, detail: "Ad running now" },
+    recent: { tier: "amber" as const, points: 1, detail: "Ran recently, not running now" },
+    stale: { tier: "red" as const, points: 0, detail: "No recent ad activity" },
+    no_advertiser: { tier: "unknown" as const, points: 0, detail: "No advertiser matched yet" },
+  };
+  const adInfo = AD_TIER[current.adSpend.recencyStatus];
+  const adItem: DreamWeekItem = {
+    key: "ads",
+    title: "Always-on ad campaign (~£100/month)",
+    target: "Active, roughly £100/month",
+    tier: adInfo.tier,
+    points: adInfo.points,
+    detail: adInfo.detail,
+  };
+
+  const groupItem: DreamWeekItem = current.group.hasData
+    ? {
+        key: "group",
+        title: "Facebook group posts",
+        target: "3 per week",
+        ...tierForCount(current.group.postCount, 3),
+        detail: `${current.group.postCount} of 3 this week`,
+      }
+    : untrackedItem("group", "Facebook group posts", "3 per week", "No data yet");
+
+  const friendlySpacesItem = untrackedItem(
+    "friendly-spaces",
+    "Building local friendly Facebook spaces",
+    "Ongoing",
+    "Target not yet defined"
+  );
+  const amplifiersItem = untrackedItem(
+    "amplifiers",
+    "Small group of amplifiers",
+    "Ongoing",
+    "Target not yet defined"
+  );
+
+  const recentHistory = detail.history.slice(-4);
+  const anyNewsletterData = recentHistory.some((h) => h.newsletter.hasData);
+  const sentRecently = recentHistory.some((h) => h.newsletter.hasData && h.newsletter.sendCount > 0);
+  const newsletterItem: DreamWeekItem = anyNewsletterData
+    ? {
+        key: "newsletter",
+        title: "Monthly email newsletter",
+        target: "At least 1 per month",
+        tier: sentRecently ? "green" : "red",
+        points: sentRecently ? 2 : 0,
+        detail: sentRecently ? "Sent within the last ~4 weeks" : "None sent in the last ~4 weeks",
+      }
+    : untrackedItem("newsletter", "Monthly email newsletter", "At least 1 per month", "No data yet");
+
+  const subscriberItem = untrackedItem(
+    "subscribers",
+    "Growing email subscribers & supporters",
+    "Consistent growth",
+    "No subscriber tracking yet"
+  );
+
+  const dreamWeekItems: DreamWeekItem[] = [
+    organicItem,
+    tiktokItem,
+    selfieItem,
+    adItem,
+    groupItem,
+    friendlySpacesItem,
+    amplifiersItem,
+    newsletterItem,
+    subscriberItem,
+  ];
 
   return (
     <div className="space-y-8">
@@ -101,6 +219,19 @@ export default async function ConstituencyDetailPage({
               of {detail.regionalCount} in {constituency.region}
             </span>
           </p>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold tracking-tight">The Dream Week checklist</h2>
+        <p className="mt-1 text-sm text-black/60 dark:text-white/60">
+          {targetPeriod ? `For ${formatPeriodLabel(targetPeriod)}` : "No activity tracked yet"} — a
+          separate weekly view of the Dream Week benchmarks, not part of the overall score above.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {dreamWeekItems.map((item) => (
+            <DreamWeekCard key={item.key} item={item} />
+          ))}
         </div>
       </div>
 
