@@ -327,15 +327,25 @@ async function buildMetricsIndex() {
 
   // Computed once per period (not per constituency) and cached, grouped
   // by constituency so both the national best-post winner and each
-  // seat's own weekly reach can be read off the same pass.
+  // seat's own weekly reach can be read off the same pass. Window is
+  // the 7 calendar days ending on referenceDate's day, not the fixed
+  // [period.start, period.end] range — for a completed past period
+  // referenceDate is that week's Sunday, so this reproduces the exact
+  // same Monday-Sunday window as before. But for the CURRENT,
+  // still-in-progress period referenceDate is "now", so on (say) a
+  // Monday this rolls back into last week's posts instead of coming up
+  // empty just because this week hasn't had a chance to produce a
+  // winner yet — same "Monday morning gap" fix as adRecencyAsOf etc.
   const videosByPeriodCache = new Map<string, Map<string, TiktokVideoLite[]>>();
-  function videosInPeriodByConstituency(period: Period): Map<string, TiktokVideoLite[]> {
+  function videosNearReferenceByConstituency(period: Period, referenceDate: Date): Map<string, TiktokVideoLite[]> {
     const cached = videosByPeriodCache.get(period.start);
     if (cached) return cached;
 
-    const rangeStart = new Date(period.start);
-    const rangeEnd = new Date(period.end);
+    const rangeEnd = new Date(referenceDate);
     rangeEnd.setUTCHours(23, 59, 59, 999);
+    const rangeStart = new Date(rangeEnd);
+    rangeStart.setUTCDate(rangeStart.getUTCDate() - 6);
+    rangeStart.setUTCHours(0, 0, 0, 0);
 
     const result = new Map<string, TiktokVideoLite[]>();
     for (const [constituencyId, videos] of tiktokVideosByConstituency) {
@@ -354,11 +364,11 @@ async function buildMetricsIndex() {
   }
 
   const bestPostWinnerByPeriod = new Map<string, string | null>();
-  function bestPostWinnerFor(period: Period): string | null {
+  function bestPostWinnerFor(period: Period, referenceDate: Date): string | null {
     const cached = bestPostWinnerByPeriod.get(period.start);
     if (cached !== undefined) return cached;
 
-    const videosInPeriod = Array.from(videosInPeriodByConstituency(period).values()).flat();
+    const videosInPeriod = Array.from(videosNearReferenceByConstituency(period, referenceDate).values()).flat();
     const winner = weeklyBestPostWinner(videosInPeriod);
     bestPostWinnerByPeriod.set(period.start, winner);
     return winner;
@@ -615,7 +625,7 @@ async function buildMetricsIndex() {
       const periodEndDate = new Date(Math.min(new Date(periodEnd[start]).getTime(), Date.now()));
       const recencyStatus = adRecencyAsOf(constituencyId, periodEndDate);
 
-      const tiktokWinnerId = bestPostWinnerFor({ start, end });
+      const tiktokWinnerId = bestPostWinnerFor({ start, end }, periodEndDate);
       const tiktokIsBestPostWinner = tiktokWinnerId === constituencyId;
       const tiktokRecencyPoints = tiktokPointsAsOf(constituencyId, periodEndDate);
       const tiktokPoints = tiktokRecencyPoints + (tiktokIsBestPostWinner ? 1 : 0);
