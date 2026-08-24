@@ -86,53 +86,65 @@ export async function syncChannelDataFromSheet(): Promise<ChannelDataSyncSummary
     }
   }
 
+  // A genuinely blank "FB posts"/"IG posts" cell means Hani's tracker
+  // has nothing at all for this MP on this platform/day (not yet
+  // connected, or a gap in her pipeline) — different from a "0" she's
+  // actively reported. Skipping the insert in that case (rather than
+  // coercing blank to 0) keeps hasAnyChannelData/hasData false for
+  // those days, so the UI can tell "not tracked" apart from "tracked,
+  // posted nothing" instead of quietly treating both as a confirmed
+  // zero.
   let dailyRowsUpserted = 0;
   for (const row of channelData) {
     const repId = repIdBySheetName.get(row.MP);
     if (!repId) continue;
 
-    await sql`
-      insert into social_activity_daily (
-        representative_id, platform, date, post_count, reel_count, video_count, reach,
-        top_post_url, top_post_text, top_post_reach, top_post_engagement, source
-      ) values (
-        ${repId}, 'facebook', ${row.Date},
-        ${num(row["FB posts"])}, ${num(row["FB Reels"])}, ${num(row["FB Videos"])},
-        ${numOrNull(row["FB Reach"])}, ${row["FB Top URL"] || null}, ${row["FB Top Text"] || null},
-        ${numOrNull(row["FB Top Reach"])}, ${numOrNull(row["FB Top Eng"])}, 'automatic'
-      )
-      on conflict (representative_id, platform, date) do update set
-        post_count = excluded.post_count,
-        reel_count = excluded.reel_count,
-        video_count = excluded.video_count,
-        reach = excluded.reach,
-        top_post_url = excluded.top_post_url,
-        top_post_text = excluded.top_post_text,
-        top_post_reach = excluded.top_post_reach,
-        top_post_engagement = excluded.top_post_engagement
-    `;
-    dailyRowsUpserted++;
+    if (row["FB posts"]?.trim()) {
+      await sql`
+        insert into social_activity_daily (
+          representative_id, platform, date, post_count, reel_count, video_count, reach,
+          top_post_url, top_post_text, top_post_reach, top_post_engagement, source
+        ) values (
+          ${repId}, 'facebook', ${row.Date},
+          ${num(row["FB posts"])}, ${num(row["FB Reels"])}, ${num(row["FB Videos"])},
+          ${numOrNull(row["FB Reach"])}, ${row["FB Top URL"] || null}, ${row["FB Top Text"] || null},
+          ${numOrNull(row["FB Top Reach"])}, ${numOrNull(row["FB Top Eng"])}, 'automatic'
+        )
+        on conflict (representative_id, platform, date) do update set
+          post_count = excluded.post_count,
+          reel_count = excluded.reel_count,
+          video_count = excluded.video_count,
+          reach = excluded.reach,
+          top_post_url = excluded.top_post_url,
+          top_post_text = excluded.top_post_text,
+          top_post_reach = excluded.top_post_reach,
+          top_post_engagement = excluded.top_post_engagement
+      `;
+      dailyRowsUpserted++;
+    }
 
-    await sql`
-      insert into social_activity_daily (
-        representative_id, platform, date, post_count, reel_count, video_count, reach,
-        top_post_url, top_post_text, top_post_reach, top_post_engagement, source
-      ) values (
-        ${repId}, 'instagram', ${row.Date},
-        ${num(row["IG posts"])}, ${num(row["IG Reels"])}, ${null},
-        ${numOrNull(row["IG Reach"])}, ${row["IG Top URL"] || null}, ${row["IG Top Text"] || null},
-        ${numOrNull(row["IG Top Reach"])}, ${numOrNull(row["IG Top Eng"])}, 'automatic'
-      )
-      on conflict (representative_id, platform, date) do update set
-        post_count = excluded.post_count,
-        reel_count = excluded.reel_count,
-        reach = excluded.reach,
-        top_post_url = excluded.top_post_url,
-        top_post_text = excluded.top_post_text,
-        top_post_reach = excluded.top_post_reach,
-        top_post_engagement = excluded.top_post_engagement
-    `;
-    dailyRowsUpserted++;
+    if (row["IG posts"]?.trim()) {
+      await sql`
+        insert into social_activity_daily (
+          representative_id, platform, date, post_count, reel_count, video_count, reach,
+          top_post_url, top_post_text, top_post_reach, top_post_engagement, source
+        ) values (
+          ${repId}, 'instagram', ${row.Date},
+          ${num(row["IG posts"])}, ${num(row["IG Reels"])}, ${null},
+          ${numOrNull(row["IG Reach"])}, ${row["IG Top URL"] || null}, ${row["IG Top Text"] || null},
+          ${numOrNull(row["IG Top Reach"])}, ${numOrNull(row["IG Top Eng"])}, 'automatic'
+        )
+        on conflict (representative_id, platform, date) do update set
+          post_count = excluded.post_count,
+          reel_count = excluded.reel_count,
+          reach = excluded.reach,
+          top_post_url = excluded.top_post_url,
+          top_post_text = excluded.top_post_text,
+          top_post_reach = excluded.top_post_reach,
+          top_post_engagement = excluded.top_post_engagement
+      `;
+      dailyRowsUpserted++;
+    }
   }
 
   let newsletterEventsUpserted = 0;
