@@ -10,24 +10,24 @@ import postgres from "postgres";
 // few edits are enough to exhaust it.
 const globalForDb = globalThis as unknown as { sql?: ReturnType<typeof postgres> };
 
-// On Vercel, DATABASE_URL should point at Supabase's *transaction*
-// pooler (port 6543), not the session pooler (5432) used locally.
-// Session mode hands each client its own dedicated backend connection
-// for as long as it's open — fine for one long-running dev process,
-// but Vercel runs several concurrent serverless instances, each
-// holding its own little pool, and they collectively blew through the
-// session pooler's 15-connection cap the moment more than a couple of
-// people loaded the site at once ("max clients reached in session
-// mode"). Transaction mode multiplexes many clients over a much larger
-// shared backend pool instead, which is what serverless actually needs.
+// Vercel runs several concurrent serverless instances, each holding
+// its own little pool against Supabase's session-mode pooler (15
+// connections total) — a couple of people loading the site at once was
+// enough to exhaust it at max: 5 per instance ("max clients reached in
+// session mode"). max: 1 on Vercel keeps each instance's footprint
+// small so more instances fit under the cap; locally there's just the
+// one dev process, so a bigger pool is fine there.
 //
-// prepare: false is required for transaction-mode pooling (prepared
-// statements are tied to one physical backend connection, which
-// transaction mode doesn't guarantee you keep between queries) — it's
-// a no-op performance cost in session mode, so safe to set unconditionally.
-// max: 1 keeps each serverless instance's own footprint minimal, since
-// Vercel can spin up many instances concurrently under load; locally
-// there's just the one dev process, so a slightly bigger pool is fine.
+// Tried switching to Supabase's transaction pooler (port 6543) to fix
+// this properly instead of just shrinking the footprint, but it threw
+// CONNECTION_CLOSED errors under the same concurrent load — likely
+// postgres.js's own reconnect handling not getting on with a warm
+// serverless instance's connection going stale between invocations.
+// Reverted; worth revisiting later, but session mode + max:1 is the
+// known-working state for now.
+//
+// prepare: false avoids relying on prepared statements surviving
+// across reconnects — a no-op cost in session mode, so safe either way.
 export const sql =
   globalForDb.sql ??
   postgres(process.env.DATABASE_URL!, {
