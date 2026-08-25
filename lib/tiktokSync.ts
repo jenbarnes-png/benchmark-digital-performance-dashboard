@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { fetchDimAccounts, fetchFactVideo, fetchFactAccountDay } from "./tiktokSheet";
+import { fetchMpAggregates } from "./tiktokSheet";
 
 // Same all-words-present matching used to resolve Meta advertisers
 // (scripts/resolve_advertisers.mts) — a name match only counts if every
@@ -46,25 +46,20 @@ export async function syncTiktokFromSheet(): Promise<TiktokSyncSummary> {
     where c.is_pilot = true and r.ended_at is null
   `;
 
-  const [dimAccounts, factVideo, factAccountDay, existingTiktokRows] = await Promise.all([
-    fetchDimAccounts(),
-    fetchFactVideo(),
-    fetchFactAccountDay(),
+  const [mpAggregates, existingTiktokRows] = await Promise.all([
+    fetchMpAggregates(),
     sql<{ representative_id: string; handle: string | null; profile_url: string | null; source: string }[]>`
       select representative_id, handle, profile_url, source from social_accounts
       where platform = 'tiktok' and ended_at is null
     `,
   ]);
 
-  // Usernames the sheet actually has activity data for — used to sanity-
-  // check a hand-entered handle before trusting it (dim_accounts is a
-  // curated subset and occasionally spells an MP's name differently
-  // than we do, e.g. "MacAlister" vs "Macallister", so name-matching
-  // alone would miss an account this confirms is really there).
-  const usernamesWithData = new Set<string>([
-    ...factVideo.map((v) => v.username.toLowerCase()),
-    ...factAccountDay.map((v) => v.username.toLowerCase()),
-  ]);
+  // Usernames the sheet actually has a row for — used to sanity-check a
+  // hand-entered handle before trusting it (occasionally spelled
+  // differently than we have it, e.g. "MacAlister" vs "Macallister", so
+  // name-matching alone would miss an account this confirms is really
+  // there).
+  const usernamesWithData = new Set<string>(mpAggregates.map((v) => v.username.toLowerCase()));
 
   // A rep already matched on a previous run (source: 'automatic') must
   // keep matching on every later run too, even after this same sync's
@@ -97,8 +92,8 @@ export async function syncTiktokFromSheet(): Promise<TiktokSyncSummary> {
       continue;
     }
 
-    const candidate = dimAccounts.find(
-      (a) => a.status === "active" && isConfidentMatch(a.mp_name || a.display_name, rep.name)
+    const candidate = mpAggregates.find(
+      (a) => a.has_sufficient_data === "TRUE" && isConfidentMatch(a.name || a.username, rep.name)
     );
     if (candidate) {
       representativeIdByUsername.set(candidate.username, rep.id);
@@ -108,26 +103,20 @@ export async function syncTiktokFromSheet(): Promise<TiktokSyncSummary> {
     }
   }
 
-  // Latest follower count per matched username.
-  const latestFollowerRow = new Map<string, { date: string; followers: number }>();
-  for (const row of factAccountDay) {
-    if (!representativeIdByUsername.has(row.username)) continue;
-    const existing = latestFollowerRow.get(row.username);
-    if (!existing || row.date > existing.date) {
-      latestFollowerRow.set(row.username, { date: row.date, followers: Number(row.followers) || 0 });
-    }
-  }
+  const aggregateByUsername = new Map(mpAggregates.map((a) => [a.username, a]));
 
   const socialAccountIdByUsername = new Map<string, string>();
   for (const [username, representativeId] of representativeIdByUsername) {
-    const follower = latestFollowerRow.get(username);
+    const account = aggregateByUsername.get(username);
+    const followers = account && account.followers !== "" ? Number(account.followers) : null;
+    const followersUpdatedAt = account?.latest_data_update ? new Date(account.latest_data_update) : null;
     const [row] = await sql<{ id: string }[]>`
       insert into social_accounts (
         representative_id, platform, handle, profile_url,
         follower_count, follower_count_updated_at, source, last_refreshed_at
       ) values (
         ${representativeId}, 'tiktok', ${username}, ${`https://www.tiktok.com/@${username}`},
-        ${follower?.followers ?? null}, ${follower ? new Date() : null}, 'automatic', now()
+        ${followers}, ${followersUpdatedAt}, 'automatic', now()
       )
       on conflict (representative_id, platform, handle) do update set
         profile_url = excluded.profile_url,
@@ -153,37 +142,51 @@ export async function syncTiktokFromSheet(): Promise<TiktokSyncSummary> {
     `;
   }
 
-  // Videos for matched accounts only, capped to a rolling 90-day window
-  // — the scoring model only looks at the trailing 30 days, but a wider
-  // window keeps a bit of trend history without the table growing
-  // unbounded on every sync.
-  const windowStart = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  // mp_aggregates gives an account-level snapshot, not a full video
+  // history, so each sync run upserts at most two rows per matched
+  // account: their most recent post (recency, but no view count — TikTok
+  // doesn't surface that per-post here) and their current single
+  // best-performing video (has a real view count, so it's what drives
+  // reach and the "best video nationally" pick). Existing older video
+  // rows from before this switch stay in the table untouched — they
+  // just age out of the scoring windows naturally.
   let videosUpserted = 0;
 
-  for (const video of factVideo) {
-    const socialAccountId = socialAccountIdByUsername.get(video.username);
-    if (!socialAccountId) continue;
+  async function upsertVideo(
+    socialAccountId: string,
+    url: string,
+    postedAtRaw: string,
+    viewCount: number | null
+  ): Promise<void> {
+    if (!url) return;
+    const postedAt = new Date(postedAtRaw);
+    if (Number.isNaN(postedAt.getTime())) return;
 
-    const postedAt = new Date(video.uploaded_at);
-    if (Number.isNaN(postedAt.getTime()) || postedAt < windowStart) continue;
+    const externalVideoId = url.match(/\/video\/(\d+)/)?.[1] ?? null;
 
     await sql`
       insert into tiktok_videos (
-        account_id, video_url, external_video_id, posted_at,
-        view_count, like_count, comment_count, share_count, source, last_updated_at
+        account_id, video_url, external_video_id, posted_at, view_count, source, last_updated_at
       ) values (
-        ${socialAccountId}, ${video.url}, ${video.video_id}, ${postedAt.toISOString()},
-        ${Number(video.views) || 0}, ${Number(video.likes) || 0}, ${Number(video.comments) || 0},
-        ${Number(video.shares) || 0}, 'automatic', now()
+        ${socialAccountId}, ${url}, ${externalVideoId}, ${postedAt.toISOString()}, ${viewCount}, 'automatic', now()
       )
       on conflict (video_url) do update set
-        view_count = excluded.view_count,
-        like_count = excluded.like_count,
-        comment_count = excluded.comment_count,
-        share_count = excluded.share_count,
+        view_count = coalesce(excluded.view_count, tiktok_videos.view_count),
         last_updated_at = excluded.last_updated_at
     `;
     videosUpserted++;
+  }
+
+  for (const [username, socialAccountId] of socialAccountIdByUsername) {
+    const account = aggregateByUsername.get(username);
+    if (!account) continue;
+
+    await upsertVideo(socialAccountId, account.last_post_url, account.last_post_date, null);
+
+    if (account.top_video_url && account.top_video_url !== account.last_post_url) {
+      const topViews = account.top_video_views !== "" ? Number(account.top_video_views) : null;
+      await upsertVideo(socialAccountId, account.top_video_url, account.top_video_uploaded, topViews);
+    }
   }
 
   return { pilotMpCount: pilotReps.length, matched, unmatched, videosUpserted };
