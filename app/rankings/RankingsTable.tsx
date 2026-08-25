@@ -195,16 +195,18 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 </Link>
               </td>
               <td className="px-4 py-3 text-black/70 dark:text-white/70">
-                {r.constituency.mp_or_candidate_name || "—"}
-                {r.tiktok.isBestPostWinner && (
-                  <span
-                    className="ml-1.5"
-                    title="Best-performing TikTok nationally this week"
-                    aria-label="Best-performing TikTok nationally this week"
-                  >
-                    🏅
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1.5">
+                  {r.constituency.mp_or_candidate_name || "—"}
+                  {r.tiktok.isBestPostWinner && (
+                    <span
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-base ring-1 ring-amber-300 dark:bg-amber-900/50 dark:ring-amber-700"
+                      title="Best performing TikTok of the week"
+                      aria-label="Best performing TikTok of the week"
+                    >
+                      🏅
+                    </span>
+                  )}
+                </span>
               </td>
               <td className="px-4 py-3 text-black/70 dark:text-white/70">{r.constituency.region}</td>
               <td className="px-4 py-3">

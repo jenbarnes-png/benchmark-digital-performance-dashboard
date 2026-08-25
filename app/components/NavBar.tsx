@@ -22,9 +22,6 @@ export default function NavBar() {
             className="h-9 w-auto"
             priority
           />
-          <span className="font-semibold tracking-tight">
-            Benchmark: Digital Campaign Manager
-          </span>
         </div>
         <nav className="flex flex-wrap gap-1">
           {navItems.map((item) => (

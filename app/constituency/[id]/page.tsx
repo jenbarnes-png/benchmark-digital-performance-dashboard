@@ -202,19 +202,14 @@ export default async function ConstituencyDetailPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{constituency.name}</h1>
           <p className="mt-1 text-black/70 dark:text-white/70">
-            {constituency.mp_or_candidate_name || "MP/candidate not yet known"}
-            {current.tiktok.isBestPostWinner && (
-              <span
-                className="ml-1.5"
-                title="Best-performing TikTok nationally this week"
-                aria-label="Best-performing TikTok nationally this week"
-              >
-                🏅
-              </span>
-            )}{" "}
-            · {constituency.region}
+            {constituency.mp_or_candidate_name || "MP/candidate not yet known"} · {constituency.region}
             {constituency.cohort && ` · ${constituency.cohort}`}
           </p>
+          {current.tiktok.isBestPostWinner && (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800 ring-1 ring-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:ring-amber-700">
+              🏅 Best performing TikTok of the week
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm">
             {socialAccounts
               .filter((a) => a.profile_url)
