@@ -37,8 +37,15 @@ const ROWS: { metric: string; points: number; source: "automatic" | "manual"; de
     metric: "TikTok",
     points: TIKTOK_MAX_POINTS,
     source: "automatic",
-    detail:
-      "1pt each for posting within 48 hours / 7 / 14 / 30 days (these stack), plus 1pt for the best-performing post nationally that week (moves to a new seat weekly).",
+    detail: (
+      <>
+        1pt each for posting within 48 hours / 7 / 14 / 30 days (these stack), plus 1pt for the
+        best-performing post nationally that week — shown with a{" "}
+        <span className="whitespace-nowrap font-semibold">🏅 badge</span> on Rankings and
+        Constituency Detail, and it moves to a new seat each week as soon as someone else&apos;s
+        video overtakes it.
+      </>
+    ),
   },
   {
     metric: "Newsletter",
