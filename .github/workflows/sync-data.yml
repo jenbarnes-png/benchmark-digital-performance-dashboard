@@ -1,10 +1,16 @@
 name: Sync live data from Hani's warehouse
 
-# Vercel's own Cron (see vercel.json) only runs once a day on the free
-# Hobby plan, so this is the actual "every few hours" driver — it just
-# calls the same secured API route Vercel's cron does. Vercel's daily
-# run stays in place as a backup in case this workflow is ever
-# disabled or GitHub Actions has an outage.
+# Runs the sync scripts directly on the GitHub Actions runner, against
+# the same Supabase database the deployed site reads from — not via
+# Vercel's /api/cron/sync route. Meta's Ad Library API can take minutes
+# to paginate through ~2000 ads (that's Meta being slow, not our code),
+# which blows straight through Vercel's 60s Hobby-plan function limit.
+# GitHub Actions jobs default to a 6-hour timeout, so there's no
+# equivalent ceiling here.
+#
+# Vercel's own Cron (see vercel.json) still hits /api/cron/sync once a
+# day as a backup — it reliably covers TikTok/channel data, and covers
+# ads too on the days Meta's API is in a better mood.
 on:
   schedule:
     - cron: "0 */4 * * *"
@@ -13,15 +19,20 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
     steps:
-      - name: Call the sync endpoint
-        run: |
-          status=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 90 \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "https://digital-performance-dashboard-seven.vercel.app/api/cron/sync")
-          echo "HTTP status: $status"
-          cat /tmp/response.json
-          if [ "$status" -ne 200 ]; then
-            echo "Sync endpoint returned $status"
-            exit 1
-          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Sync TikTok
+        run: npx tsx scripts/sync_tiktok.mts
+      - name: Sync Facebook/Instagram/newsletter/lead-gen
+        run: npx tsx scripts/sync_channel_data.mts
+      - name: Sync Meta ads
+        run: npx tsx scripts/sync_meta_ads.mts
+        continue-on-error: true # Meta's token can expire independently of this job; don't fail the whole run over it
