@@ -1,13 +1,24 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const navItems = [
+// The Project Beacon link is a separate site, so it uses a plain anchor rather
+// than next/link. Both sites share a sign-in, so following it does not prompt
+// for another login.
+const navItems: { href: string; label: string; external?: boolean }[] = [
+  {
+    href: "https://www.project-beacon.co.uk/",
+    label: "Home",
+    external: true,
+  },
   { href: "/", label: "National Dashboard" },
   { href: "/rankings", label: "Rankings" },
   { href: "/constituency", label: "Constituency Detail" },
   { href: "/scoring", label: "How Scoring Works" },
   { href: "/admin", label: "Admin / Data Entry" },
 ];
+
+const navLinkClass =
+  "rounded-md px-3 py-2 text-sm font-medium text-black/70 hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white";
 
 export default function NavBar() {
   return (
@@ -24,15 +35,17 @@ export default function NavBar() {
           />
         </div>
         <nav className="flex flex-wrap gap-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-md px-3 py-2 text-sm font-medium text-black/70 hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white"
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) =>
+            item.external ? (
+              <a key={item.href} href={item.href} className={navLinkClass}>
+                {item.label}
+              </a>
+            ) : (
+              <Link key={item.href} href={item.href} className={navLinkClass}>
+                {item.label}
+              </Link>
+            ),
+          )}
         </nav>
       </div>
     </header>
