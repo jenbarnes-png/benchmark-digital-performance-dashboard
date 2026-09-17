@@ -15,8 +15,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Needed so the icon and share-image file conventions resolve to absolute
+  // URLs — link scrapers do not follow relative paths.
+  metadataBase: new URL(
+    process.env.BEACON_SITE_URL ?? "https://dashboard.project-beacon.co.uk",
+  ),
   title: "Benchmark: Digital Campaign Manager",
   description: "Campaign hub for Labour MPs and candidates' digital activity",
+  openGraph: {
+    type: "website",
+    siteName: "Project Beacon",
+    title: "Benchmark: Digital Campaign Manager",
+    description: "Campaign hub for Labour MPs and candidates' digital activity",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
