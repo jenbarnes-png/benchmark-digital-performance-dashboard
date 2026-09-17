@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavBar from "./components/NavBar";
+import { requireBeaconUser } from "@/lib/beaconAuth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,7 +19,13 @@ export const metadata: Metadata = {
   description: "Campaign hub for Labour MPs and candidates' digital activity",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Authoritative session check. proxy.ts only confirms a cookie exists; this
+  // verifies it against Beacon and redirects if it is expired, revoked or
+  // forged. Every page renders through this layout, so nothing is served
+  // before it runs. No-ops unless BEACON_AUTH=on.
+  await requireBeaconUser();
+
   return (
     <html
       lang="en"
