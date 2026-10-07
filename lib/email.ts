@@ -8,7 +8,12 @@ import nodemailer from "nodemailer";
 // Passwords → generate one for "Mail".) Until both are set, sends are
 // skipped with a console warning rather than throwing — approvals still
 // work from the Admin queue in the meantime.
-const APPROVAL_RECIPIENTS = ["jenbarnes@fouroneone.co.uk", "alexcreighton@fouroneone.co.uk"];
+// Comma-separated list in APPROVAL_EMAILS, so changing who approves is a settings
+// change rather than a code change.
+const APPROVAL_RECIPIENTS = (process.env.APPROVAL_EMAILS ?? "")
+  .split(",")
+  .map((e) => e.trim())
+  .filter(Boolean);
 
 function getTransport() {
   const user = process.env.GMAIL_SMTP_USER;
@@ -24,9 +29,9 @@ function getTransport() {
 
 async function sendReviewEmail(params: { subject: string; body: string }): Promise<{ sent: boolean }> {
   const transport = getTransport();
-  if (!transport) {
+  if (!transport || APPROVAL_RECIPIENTS.length === 0) {
     console.warn(
-      "[email] GMAIL_SMTP_USER / GMAIL_SMTP_APP_PASSWORD not set — skipping approval email. Approve from Admin instead."
+      "[email] GMAIL_SMTP_USER / GMAIL_SMTP_APP_PASSWORD / APPROVAL_EMAILS not set — skipping approval email. Approve from Admin instead."
     );
     return { sent: false };
   }

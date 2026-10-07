@@ -3,7 +3,7 @@ import { sql } from "./db";
 // Monthly subscriber-count manual entry — the only way to score "grew
 // the list by 20+ this month", since no email platform is connected
 // here. Same approval-gated pattern as facebook_group_activity:
-// submissions land 'pending' (has_data stays false) until Jen or Alex
+// submissions land 'pending' (has_data stays false) until an approver
 // approves.
 export type SubscriberCountStatus = "pending" | "approved" | "rejected";
 

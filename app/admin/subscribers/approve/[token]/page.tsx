@@ -4,7 +4,6 @@ import { listSubscriberCountEntries } from "@/lib/subscriberCounts";
 import { formatMonthLabel } from "@/lib/format";
 import { approveSubscriberEntryAction, rejectSubscriberEntryAction } from "../../actions";
 
-const APPROVERS = ["Jen Barnes", "Alex Creighton"];
 
 // Same GET-safe confirmation pattern as the Facebook Group approve page
 // — never approves/rejects on load, only on an explicit button click.
@@ -41,17 +40,13 @@ export default async function ApproveSubscriberCountPage({
           <form action={approveAction} className="flex items-end gap-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Approving as</span>
-              <select
+              <input
                 name="approvedBy"
-                defaultValue={APPROVERS[0]}
+                type="text"
+                required
+                placeholder="Your name"
                 className="rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
-              >
-                {APPROVERS.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <button
               type="submit"
@@ -63,17 +58,13 @@ export default async function ApproveSubscriberCountPage({
           <form action={rejectAction} className="flex items-end gap-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">Rejecting as</span>
-              <select
+              <input
                 name="approvedBy"
-                defaultValue={APPROVERS[0]}
+                type="text"
+                required
+                placeholder="Your name"
                 className="rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
-              >
-                {APPROVERS.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <button
               type="submit"

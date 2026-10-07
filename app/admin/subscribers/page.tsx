@@ -22,7 +22,7 @@ export default async function SubscribersPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Subscriber counts (monthly)</h1>
           <p className="mt-2 max-w-2xl text-black/70 dark:text-white/70">
             Total email subscriber list size, logged by hand once a month — feeds the Newsletter
-            subscriber-growth point. Each submission needs approval from Jen or Alex before it
+            subscriber-growth point. Each submission needs approval before it
             counts.
           </p>
         </div>

@@ -4,7 +4,7 @@ import { sql } from "./db";
 // Facebook & Instagram" activity that still has no automated source
 // (Hani's warehouse covers feed posts, not group posts). Submissions
 // land as 'pending' — has_data stays false, so nothing changes on the
-// tracker — until Jen or Alex approves, either from the email link or
+// tracker — until an approver approves, either from the email link or
 // the Admin queue below.
 export type FacebookGroupStatus = "pending" | "approved" | "rejected";
 

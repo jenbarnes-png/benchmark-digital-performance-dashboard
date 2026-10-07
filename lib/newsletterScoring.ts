@@ -1,6 +1,6 @@
 // Newsletter scoring: 2 points, on the same 0-100 scale as every other
 // scored metric (see lib/scoring.ts). Calendar-month-anchored (since
-// the 1st) rather than a rolling 30-day window, matching how Jen
+// the 1st) rather than a rolling 30-day window, matching how the team
 // actually wants "sent this month" judged. A 3rd point for subscriber
 // list growth is planned but not yet scored — there's no subscriber-
 // count data source wired up yet (see lib/dreamWeek.ts's untracked

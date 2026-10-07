@@ -1,4 +1,4 @@
--- Facebook Group manual reporting now needs sign-off from Jen/Alex
+-- Facebook Group manual reporting now needs sign-off from an approver
 -- before it counts — see lib/facebookGroupActivity.ts. New submissions
 -- land as 'pending' (has_data stays false, so nothing changes on the
 -- tracker until approved); approving flips status + has_data together.

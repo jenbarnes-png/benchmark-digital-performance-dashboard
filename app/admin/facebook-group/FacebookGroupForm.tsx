@@ -122,7 +122,7 @@ export default function FacebookGroupForm({
       </div>
 
       <p className="text-sm text-black/60 dark:text-white/60">
-        Saving sends jenbarnes@fouroneone.co.uk and alexcreighton@fouroneone.co.uk an email to
+        Saving sends the approvers an email to
         approve — it won&apos;t count on the tracker until then.
       </p>
 

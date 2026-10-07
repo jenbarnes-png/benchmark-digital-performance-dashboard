@@ -10,7 +10,7 @@ const sections = [
   {
     href: "/admin/facebook-group",
     label: "Facebook Group manual reporting",
-    description: "Log weekly Facebook Group post counts by hand — needs Jen or Alex's approval before it counts.",
+    description: "Log weekly Facebook Group post counts by hand — needs approval before it counts.",
     available: true,
   },
   {

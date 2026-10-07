@@ -22,7 +22,7 @@ export default async function FacebookGroupPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Facebook Group manual reporting</h1>
           <p className="mt-2 max-w-2xl text-black/70 dark:text-white/70">
             Weekly Facebook Group post counts, logged by hand since there&apos;s no automatic feed
-            for private groups. Each submission needs approval from Jen or Alex — by email link or
+            for private groups. Each submission needs approval — by email link or
             below — before it counts on the tracker.
           </p>
         </div>

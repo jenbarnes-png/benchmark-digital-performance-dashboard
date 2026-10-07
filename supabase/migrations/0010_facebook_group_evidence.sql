@@ -1,4 +1,4 @@
--- Link to the post + a screenshot, so Jen/Alex can actually see what
+-- Link to the post + a screenshot, so approvers can actually see what
 -- they're approving instead of trusting a bare number. Screenshot is
 -- stored directly in Postgres (bytea) rather than an object store —
 -- there's no Supabase Storage configured for this project, and volume
