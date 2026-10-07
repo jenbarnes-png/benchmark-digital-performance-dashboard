@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavBar from "./components/NavBar";
 import { requireBeaconUser } from "@/lib/beaconAuth";
+import { canUseAdmin } from "@/lib/beaconSession";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,7 +25,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // verifies it against Beacon and redirects if it is expired, revoked or
   // forged. Every page renders through this layout, so nothing is served
   // before it runs. No-ops unless BEACON_AUTH=on.
-  await requireBeaconUser();
+  const user = await requireBeaconUser();
 
   return (
     <html
@@ -32,7 +33,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NavBar />
+        <NavBar showAdmin={!user || canUseAdmin(user.role)} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
           {children}
         </main>

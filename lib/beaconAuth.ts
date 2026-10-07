@@ -1,22 +1,14 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { SESSION_COOKIE, fetchBeaconUser, type BeaconUser } from "./beaconSession";
+
 // Session cookie set by Project Beacon on .project-beacon.co.uk, so it is sent
 // to this subdomain too. The value is an opaque token — only Beacon's API can
-// say whether it is valid, hence the lookup below.
-const SESSION_COOKIE = "beacon_session";
-
-const BEACON_API_URL =
-  process.env.BEACON_API_URL ?? "https://api.project-beacon.co.uk";
+// say whether it is valid, hence the lookup in beaconSession.ts.
 const BEACON_SIGNIN_URL =
   process.env.BEACON_SIGNIN_URL ?? "https://project-beacon.co.uk/signin";
 const SITE_URL = process.env.BEACON_SITE_URL;
-
-export type BeaconUser = {
-  email: string;
-  name: string | null;
-  role: "client" | "staff" | "admin";
-};
 
 /**
  * Whether the Beacon gate is switched on.
@@ -47,23 +39,7 @@ export async function getBeaconUser(): Promise<BeaconUser | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-
-  try {
-    const res = await fetch(`${BEACON_API_URL}/api/auth/me`, {
-      headers: { cookie: `${SESSION_COOKIE}=${token}` },
-      // Must not be cached: the answer is per-user and can change the moment
-      // someone is deactivated in Beacon's admin.
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-
-    const data = (await res.json()) as { signedIn?: boolean; user?: BeaconUser };
-    return data.signedIn && data.user ? data.user : null;
-  } catch {
-    // Beacon unreachable. Fail closed — better to send someone to sign in than
-    // to serve constituency data because an API call timed out.
-    return null;
-  }
+  return fetchBeaconUser(token);
 }
 
 /**

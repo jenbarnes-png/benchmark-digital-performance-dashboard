@@ -20,7 +20,7 @@ const navItems: { href: string; label: string; external?: boolean }[] = [
 const navLinkClass =
   "rounded-md px-3 py-2 text-sm font-medium text-black/70 hover:bg-black/5 hover:text-black dark:text-white/70 dark:hover:bg-white/10 dark:hover:text-white";
 
-export default function NavBar() {
+export default function NavBar({ showAdmin = true }: { showAdmin?: boolean }) {
   return (
     <header className="border-b border-black/10 dark:border-white/15">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-6 px-6 py-4">
@@ -35,7 +35,9 @@ export default function NavBar() {
           />
         </div>
         <nav className="flex flex-wrap gap-1">
-          {navItems.map((item) =>
+          {navItems
+            .filter((item) => showAdmin || item.href !== "/admin")
+            .map((item) =>
             item.external ? (
               <a key={item.href} href={item.href} className={navLinkClass}>
                 {item.label}

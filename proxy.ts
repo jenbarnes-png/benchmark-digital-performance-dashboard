@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-
-const BEACON_SESSION_COOKIE = "beacon_session";
+import { SESSION_COOKIE as BEACON_SESSION_COOKIE, canUseAdmin, fetchBeaconUser } from "./lib/beaconSession";
 
 function basicAuthOk(request: NextRequest): boolean | null {
   const username = process.env.SITE_USERNAME;
@@ -16,6 +15,32 @@ function basicAuthOk(request: NextRequest): boolean | null {
     }
   }
   return false;
+}
+
+function signInRedirect(request: NextRequest) {
+  const signIn = new URL(
+    process.env.BEACON_SIGNIN_URL ?? "https://project-beacon.co.uk/signin",
+  );
+  const siteUrl = process.env.BEACON_SITE_URL;
+  if (siteUrl) {
+    signIn.searchParams.set(
+      "next",
+      `${siteUrl}${request.nextUrl.pathname}${request.nextUrl.search}`,
+    );
+  }
+  return NextResponse.redirect(signIn);
+}
+
+function adminForbidden(email: string, role: string) {
+  const esc = (v: string) => v.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+  return new NextResponse(
+    `<!doctype html><meta charset="utf-8"><title>Admin is staff only</title>
+<body style="font-family:system-ui;max-width:32rem;margin:4rem auto;padding:0 1rem">
+<h1>Admin is staff only</h1>
+<p>You're signed in as ${esc(email)} (${esc(role)}). Admin / Data Entry is only available to Project Beacon staff and admins.</p>
+<p><a href="/">Back to the dashboard</a></p></body>`,
+    { status: 403, headers: { "content-type": "text/html; charset=utf-8" } },
+  );
 }
 
 // Gate for the whole app, including Admin.
@@ -35,11 +60,21 @@ function basicAuthOk(request: NextRequest): boolean | null {
 // satisfies the gate, so nothing breaks during the switch-over and preview
 // deployments stay reachable. Once Beacon sign-in is bedded in, those two env
 // vars can be removed.
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (basicAuthOk(request) === true) return NextResponse.next();
 
   if (process.env.BEACON_AUTH === "on") {
-    if (request.cookies.has(BEACON_SESSION_COOKIE)) {
+    const sessionToken = request.cookies.get(BEACON_SESSION_COOKIE)?.value;
+    if (sessionToken) {
+      // Admin / Data Entry (pages, form submissions and the screenshot route
+      // all live under /admin) is staff-only. This one path gets the real
+      // check here rather than the optimistic cookie test, so a forged cookie
+      // or a client account can't reach it. Low traffic, so the extra call is fine.
+      if (request.nextUrl.pathname.startsWith("/admin")) {
+        const user = await fetchBeaconUser(sessionToken);
+        if (!user) return signInRedirect(request);
+        if (!canUseAdmin(user.role)) return adminForbidden(user.email, user.role);
+      }
       // Pass the path through so that if the server-side check then rejects an
       // expired or revoked session, it can still send the user back here after
       // they sign in. A server layout cannot read the pathname on its own.
@@ -51,17 +86,7 @@ export function proxy(request: NextRequest) {
       return NextResponse.next({ request: { headers } });
     }
 
-    const signIn = new URL(
-      process.env.BEACON_SIGNIN_URL ?? "https://project-beacon.co.uk/signin",
-    );
-    const siteUrl = process.env.BEACON_SITE_URL;
-    if (siteUrl) {
-      signIn.searchParams.set(
-        "next",
-        `${siteUrl}${request.nextUrl.pathname}${request.nextUrl.search}`,
-      );
-    }
-    return NextResponse.redirect(signIn);
+    return signInRedirect(request);
   }
 
   // Beacon gate off: fall back to the Basic Auth behaviour.
