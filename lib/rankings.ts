@@ -140,14 +140,14 @@ export async function listPeriods(): Promise<Period[]> {
 
 export async function listRegions(): Promise<string[]> {
   const rows = await sql<{ region: string }[]>`
-    select distinct region from constituencies order by region
+    select distinct region from constituencies where not is_hidden order by region
   `;
   return rows.map((r) => r.region);
 }
 
 export async function listCohorts(): Promise<string[]> {
   const rows = await sql<{ cohort: string }[]>`
-    select distinct cohort from constituencies where cohort is not null order by cohort
+    select distinct cohort from constituencies where cohort is not null and not is_hidden order by cohort
   `;
   return rows.map((r) => r.cohort);
 }
@@ -256,6 +256,9 @@ export type PeriodMetrics = {
  * the shape both pages need — scoring rules live here, once.
  */
 async function buildMetricsIndex() {
+  const hiddenIds = new Set(
+    (await sql<{ id: string }[]>`select id from constituencies where is_hidden`).map((r) => r.id)
+  );
   const [
     organic,
     adSpend,
@@ -323,6 +326,7 @@ async function buildMetricsIndex() {
     { postedAt: string; viewCount: number | null; likeCount: number | null }[]
   >();
   for (const row of tiktokVideoRows) {
+    if (hiddenIds.has(row.constituency_id)) continue;
     if (!tiktokVideosByConstituency.has(row.constituency_id)) tiktokVideosByConstituency.set(row.constituency_id, []);
     tiktokVideosByConstituency
       .get(row.constituency_id)!
@@ -568,7 +572,7 @@ async function buildMetricsIndex() {
       ...channelAccountConstituencyIds,
       ...newsletterAccountConstituencyIds,
     ])
-  );
+  ).filter((id) => !hiddenIds.has(id));
 
   // First pass: raw aggregates per constituency+period (no scoring yet —
   // peer-relative metrics need every constituency's raw value first).
@@ -852,7 +856,7 @@ export async function getRankings(filters: {
 }): Promise<RankingsResult> {
   const [{ index, periods }, constituencies, regions, cohorts, lastUpdated] = await Promise.all([
     buildMetricsIndex(),
-    sql<Constituency[]>`select * from constituencies`,
+    sql<Constituency[]>`select * from constituencies where not is_hidden`,
     listRegions(),
     listCohorts(),
     getLastUpdated(),
@@ -979,7 +983,7 @@ export async function getConstituencyDetail(
 ): Promise<ConstituencyDetail | null> {
   const [{ index, periods }, constituencies] = await Promise.all([
     buildMetricsIndex(),
-    sql<Constituency[]>`select * from constituencies`,
+    sql<Constituency[]>`select * from constituencies where not is_hidden`,
   ]);
 
   const constituency = constituencies.find((c) => c.id === constituencyId);

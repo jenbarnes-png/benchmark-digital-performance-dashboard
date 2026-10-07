@@ -29,6 +29,7 @@ export async function getAdHexStatuses(): Promise<Map<string, ConstituencyHexSta
     from constituencies c
     left join advertisers a on a.constituency_id = c.id and a.platform = 'meta' and a.ended_at is null
     left join ads on ads.advertiser_id = a.id
+    where not c.is_hidden
     group by c.id, c.name, a.id
   `;
 
@@ -75,6 +76,7 @@ export async function getTiktokHexStatuses(): Promise<Map<string, ConstituencyHe
     left join representatives r on r.constituency_id = c.id and r.ended_at is null
     left join social_accounts sa on sa.representative_id = r.id and sa.platform = 'tiktok' and sa.ended_at is null
     left join tiktok_videos tv on tv.account_id = sa.id
+    where not c.is_hidden
     group by c.id, c.name
   `;
 
@@ -125,6 +127,7 @@ async function getChannelPlatformHexStatuses(platform: "facebook" | "instagram")
     from constituencies c
     left join representatives r on r.constituency_id = c.id and r.ended_at is null
     left join social_activity_daily sad on sad.representative_id = r.id and sad.platform = ${platform}
+    where not c.is_hidden
     group by c.id, c.name
   `;
 
@@ -184,6 +187,7 @@ export async function getGroupHexStatuses(): Promise<Map<string, ConstituencyHex
       order by fga.period_start desc
       limit 1
     ) latest on true
+    where not c.is_hidden
   `;
 
   const map = new Map<string, ConstituencyHexStatus>();
@@ -221,6 +225,7 @@ export async function getEmailHexStatuses(): Promise<Map<string, ConstituencyHex
     from constituencies c
     left join representatives r on r.constituency_id = c.id and r.ended_at is null
     left join newsletter_events ne on ne.representative_id = r.id
+    where not c.is_hidden
     group by c.id, c.name
   `;
 

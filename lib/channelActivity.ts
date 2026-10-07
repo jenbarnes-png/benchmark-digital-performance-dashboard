@@ -129,7 +129,7 @@ export async function getTopChannelPostsNational(limit = 3): Promise<ChannelPost
     from social_activity_daily sad
     join representatives r on r.id = sad.representative_id and r.ended_at is null
     join constituencies c on c.id = r.constituency_id
-    where sad.top_post_url is not null and sad.date >= ${windowStart}
+    where sad.top_post_url is not null and sad.date >= ${windowStart} and not c.is_hidden
     order by sad.top_post_reach desc nulls last
     limit ${limit * 10}
   `;

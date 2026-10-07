@@ -6,7 +6,7 @@ import { deleteConstituencyAction } from "./actions";
 export const dynamic = "force-dynamic";
 
 export default async function ConstituenciesPage() {
-  const constituencies = await listConstituencies();
+  const constituencies = await listConstituencies(true);
 
   return (
     <div className="space-y-6">
@@ -43,7 +43,14 @@ export default async function ConstituenciesPage() {
           <tbody>
             {constituencies.map((c) => (
               <tr key={c.id} className="border-b border-black/5 last:border-0 dark:border-white/10">
-                <td className="px-4 py-3 font-medium">{c.name}</td>
+                <td className="px-4 py-3 font-medium">
+                  {c.name}
+                  {c.is_hidden && (
+                    <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                      Hidden
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-black/70 dark:text-white/70">
                   {c.mp_or_candidate_name || "—"}
                 </td>

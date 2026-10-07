@@ -29,6 +29,7 @@ function parseInput(formData: FormData): ConstituencyInput | { error: string } {
     region,
     mpOrCandidateName: field(formData, "mpOrCandidateName"),
     isPilot: formData.get("isPilot") === "on",
+    isHidden: formData.get("isHidden") === "on",
   };
 }
 

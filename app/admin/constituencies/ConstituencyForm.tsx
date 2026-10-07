@@ -75,6 +75,23 @@ export default function ConstituencyForm({
         </label>
       </div>
 
+      <div className="flex items-start gap-2">
+        <input
+          id="isHidden"
+          name="isHidden"
+          type="checkbox"
+          defaultChecked={Boolean(initialValues?.is_hidden)}
+          className="mt-0.5 h-4 w-4 rounded border-black/30 dark:border-white/30"
+        />
+        <label htmlFor="isHidden" className="text-sm font-medium">
+          Hide from the dashboard
+          <span className="block text-xs font-normal text-black/50 dark:text-white/50">
+            Removed from Rankings, the hex map and detail pages. Nothing is deleted, and data
+            keeps syncing, so un-ticking this brings it straight back.
+          </span>
+        </label>
+      </div>
+
       {initialValues && (
         <p className="border-t border-black/10 pt-5 text-sm text-black/50 dark:border-white/15 dark:text-white/50">
           Social media profiles are managed per representative now, not per constituency —

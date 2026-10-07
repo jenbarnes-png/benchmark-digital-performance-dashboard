@@ -60,7 +60,7 @@ export async function getTopTiktokVideosNational(limit = 3): Promise<TiktokVideo
     join social_accounts sa on sa.id = tv.account_id and sa.ended_at is null
     join representatives r on r.id = sa.representative_id and r.ended_at is null
     join constituencies c on c.id = r.constituency_id
-    where tv.posted_at >= ${windowStart}
+    where tv.posted_at >= ${windowStart} and not c.is_hidden
     order by tv.view_count desc nulls last
     limit ${limit * 10}
   `;

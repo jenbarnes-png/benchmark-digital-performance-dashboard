@@ -46,6 +46,7 @@ export type Constituency = {
   region: string;
   cohort: string | null;
   is_pilot: boolean;
+  is_hidden: boolean;
   hex_id: string | null;
   created_at: string;
 };
@@ -55,14 +56,22 @@ export type ConstituencyInput = {
   mpOrCandidateName: string | null;
   region: string;
   isPilot: boolean;
+  isHidden: boolean;
 };
 
-export async function listConstituencies(): Promise<Constituency[]> {
-  return sql<Constituency[]>`select * from constituencies order by name asc`;
+/** Hidden constituencies are left out unless the caller (admin screens) asks for them. */
+export async function listConstituencies(includeHidden = false): Promise<Constituency[]> {
+  return sql<Constituency[]>`
+    select * from constituencies
+    where ${includeHidden ? sql`true` : sql`not is_hidden`}
+    order by name asc
+  `;
 }
 
-export async function getConstituency(id: string): Promise<Constituency | undefined> {
-  const rows = await sql<Constituency[]>`select * from constituencies where id = ${id}`;
+export async function getConstituency(id: string, includeHidden = false): Promise<Constituency | undefined> {
+  const rows = await sql<Constituency[]>`
+    select * from constituencies where id = ${id} and ${includeHidden ? sql`true` : sql`not is_hidden`}
+  `;
   return rows[0];
 }
 
@@ -75,8 +84,8 @@ export async function getConstituency(id: string): Promise<Constituency | undefi
 export async function createConstituency(input: ConstituencyInput): Promise<string> {
   return sql.begin(async (sql) => {
     const rows = await sql<{ id: string }[]>`
-      insert into constituencies (name, mp_or_candidate_name, region, is_pilot)
-      values (${input.name}, ${input.mpOrCandidateName}, ${input.region}, ${input.isPilot})
+      insert into constituencies (name, mp_or_candidate_name, region, is_pilot, is_hidden)
+      values (${input.name}, ${input.mpOrCandidateName}, ${input.region}, ${input.isPilot}, ${input.isHidden})
       returning id
     `;
     const id = rows[0].id;
@@ -106,7 +115,8 @@ export async function updateConstituency(id: string, input: ConstituencyInput): 
       set name = ${input.name},
           mp_or_candidate_name = ${input.mpOrCandidateName},
           region = ${input.region},
-          is_pilot = ${input.isPilot}
+          is_pilot = ${input.isPilot},
+          is_hidden = ${input.isHidden}
       where id = ${id}
     `;
 
