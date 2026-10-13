@@ -16,6 +16,15 @@ export function canUseAdmin(role: BeaconUser["role"]): boolean {
   return role === "staff" || role === "admin";
 }
 
+// The only admin pages open to client accounts: the hub (which shows them just
+// the two forms) and the two data-submission forms. Everything else under
+// /admin (review queues, approvals, edits, constituencies, screenshots) stays staff-only.
+const CLIENT_ADMIN_PATHS = ["/admin", "/admin/facebook-group/new", "/admin/subscribers/new"];
+
+export function adminPathAllowedForClient(pathname: string): boolean {
+  return CLIENT_ADMIN_PATHS.includes(pathname.replace(/\/+$/, "") || "/");
+}
+
 /**
  * Ask Beacon whether a session token is valid. Not cached: the answer is
  * per-user and can change the moment someone is deactivated. Fails closed.

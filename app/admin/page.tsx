@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { isClientUser } from "@/lib/beaconAuth";
+
+// Role-dependent, so never cached.
+export const dynamic = "force-dynamic";
 
 const sections = [
   {
@@ -27,7 +31,15 @@ const sections = [
   },
 ];
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  // Client accounts only get the two data-entry forms.
+  const clientView = await isClientUser();
+  const visible = clientView
+    ? sections
+        .filter((x) => x.href === "/admin/facebook-group" || x.href === "/admin/subscribers")
+        .map((x) => ({ ...x, href: `${x.href}/new` }))
+    : sections;
+
   return (
     <div className="space-y-6">
       <div>
@@ -38,7 +50,7 @@ export default function AdminPage() {
       </div>
 
       <ul className="divide-y divide-black/10 rounded-lg border border-black/10 dark:divide-white/15 dark:border-white/15">
-        {sections.map((section) => (
+        {visible.map((section) => (
           <li key={section.label} className="flex items-center justify-between gap-4 px-4 py-4">
             <div>
               <p className="font-medium">{section.label}</p>

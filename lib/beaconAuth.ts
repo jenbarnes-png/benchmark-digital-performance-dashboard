@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { SESSION_COOKIE, fetchBeaconUser, type BeaconUser } from "./beaconSession";
+import { SESSION_COOKIE, canUseAdmin, fetchBeaconUser, type BeaconUser } from "./beaconSession";
 
 // Session cookie set by Project Beacon on .project-beacon.co.uk, so it is sent
 // to this subdomain too. The value is an opaque token — only Beacon's API can
@@ -59,4 +59,21 @@ export async function requireBeaconUser(): Promise<BeaconUser | null> {
     redirect(signInUrl(SITE_URL ? `${SITE_URL}${path}` : undefined));
   }
   return user;
+}
+
+/**
+ * Server actions can be invoked directly, so the review/delete actions check
+ * the role themselves as well as relying on the proxy. No-op unless BEACON_AUTH=on.
+ */
+export async function assertStaff(): Promise<void> {
+  if (!beaconAuthEnabled()) return;
+  const user = await getBeaconUser();
+  if (!user || !canUseAdmin(user.role)) throw new Error("Staff only");
+}
+
+/** True for signed-in client accounts (who only get the data-entry forms). */
+export async function isClientUser(): Promise<boolean> {
+  if (!beaconAuthEnabled()) return false;
+  const user = await getBeaconUser();
+  return Boolean(user && !canUseAdmin(user.role));
 }

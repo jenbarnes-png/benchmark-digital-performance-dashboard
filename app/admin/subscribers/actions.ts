@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { assertStaff, isClientUser } from "@/lib/beaconAuth";
 import {
   submitSubscriberCountEntry,
   deleteSubscriberCountEntry,
@@ -59,16 +60,19 @@ export async function submitSubscriberCountAction(_prevState: FormState, formDat
   });
 
   revalidatePath("/admin/subscribers");
-  redirect("/admin/subscribers");
+  // Client accounts can't open the review queue, so send them back to the form with a confirmation.
+  redirect((await isClientUser()) ? "/admin/subscribers/new?submitted=1" : "/admin/subscribers");
 }
 
 export async function deleteSubscriberCountAction(constituencyId: string, monthStart: string): Promise<void> {
+  await assertStaff();
   await deleteSubscriberCountEntry(constituencyId, monthStart);
   revalidatePath("/admin/subscribers");
   redirect("/admin/subscribers");
 }
 
 export async function approveSubscriberEntryAction(token: string, formData: FormData): Promise<void> {
+  await assertStaff();
   const approvedBy = String(formData.get("approvedBy") ?? "").trim() || "unspecified";
   await approveSubscriberCountEntry(token, approvedBy);
   revalidatePath("/admin/subscribers");
@@ -76,6 +80,7 @@ export async function approveSubscriberEntryAction(token: string, formData: Form
 }
 
 export async function rejectSubscriberEntryAction(token: string, formData: FormData): Promise<void> {
+  await assertStaff();
   const approvedBy = String(formData.get("approvedBy") ?? "").trim() || "unspecified";
   await rejectSubscriberCountEntry(token, approvedBy);
   revalidatePath("/admin/subscribers");

@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <NavBar showAdmin={!user || canUseAdmin(user.role)} />
+        <NavBar adminLabel={user && !canUseAdmin(user.role) ? "Report data" : undefined} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
           {children}
         </main>

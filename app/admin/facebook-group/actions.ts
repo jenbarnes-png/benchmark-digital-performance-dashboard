@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { assertStaff, isClientUser } from "@/lib/beaconAuth";
 import {
   submitFacebookGroupEntry,
   deleteFacebookGroupEntry,
@@ -80,10 +81,12 @@ export async function submitFacebookGroupAction(_prevState: FormState, formData:
   });
 
   revalidatePath("/admin/facebook-group");
-  redirect("/admin/facebook-group");
+  // Client accounts can't open the review queue, so send them back to the form with a confirmation.
+  redirect((await isClientUser()) ? "/admin/facebook-group/new?submitted=1" : "/admin/facebook-group");
 }
 
 export async function deleteFacebookGroupAction(constituencyId: string, periodStart: string): Promise<void> {
+  await assertStaff();
   await deleteFacebookGroupEntry(constituencyId, periodStart);
   revalidatePath("/admin/facebook-group");
   revalidatePath(`/constituency/${constituencyId}`);
@@ -91,6 +94,7 @@ export async function deleteFacebookGroupAction(constituencyId: string, periodSt
 }
 
 export async function approveEntryAction(token: string, formData: FormData): Promise<void> {
+  await assertStaff();
   const approvedBy = String(formData.get("approvedBy") ?? "").trim() || "unspecified";
   const entry = await approveFacebookGroupEntry(token, approvedBy);
   revalidatePath("/admin/facebook-group");
@@ -99,6 +103,7 @@ export async function approveEntryAction(token: string, formData: FormData): Pro
 }
 
 export async function rejectEntryAction(token: string, formData: FormData): Promise<void> {
+  await assertStaff();
   const approvedBy = String(formData.get("approvedBy") ?? "").trim() || "unspecified";
   await rejectFacebookGroupEntry(token, approvedBy);
   revalidatePath("/admin/facebook-group");

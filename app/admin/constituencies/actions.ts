@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { assertStaff } from "@/lib/beaconAuth";
 import {
   createConstituency,
   updateConstituency,
@@ -37,6 +38,7 @@ export async function createConstituencyAction(
   _prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await assertStaff();
   const input = parseInput(formData);
   if ("error" in input) return input;
 
@@ -58,6 +60,7 @@ export async function updateConstituencyAction(
   _prevState: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await assertStaff();
   const input = parseInput(formData);
   if ("error" in input) return input;
 
@@ -75,6 +78,7 @@ export async function updateConstituencyAction(
 }
 
 export async function deleteConstituencyAction(id: string): Promise<void> {
+  await assertStaff();
   await deleteConstituency(id);
   revalidatePath("/admin/constituencies");
   redirect("/admin/constituencies");
