@@ -56,27 +56,6 @@ export async function getRecentChannelActivity(constituencyId: string): Promise<
   };
 }
 
-export type LeadgenSnapshot = {
-  hasData: boolean;
-  leadsActive: boolean;
-  spendMtd: number | null;
-};
-
-/** The real "is there a Lead Generation ad running" signal — more precise than the general ad-recency status, which can't distinguish campaign objective. */
-export async function getLeadgenSnapshot(constituencyId: string): Promise<LeadgenSnapshot> {
-  // Only trust a snapshot that was refreshed recently. This feed came from the old
-  // data supplier and is no longer updated, so older values must not read as current.
-  const freshAfter = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-  const rows = await sql<{ leads_active: boolean; spend_mtd: string | null }[]>`
-    select mls.leads_active, mls.spend_mtd
-    from meta_leadgen_snapshot mls
-    join representatives r on r.id = mls.representative_id and r.ended_at is null
-    where r.constituency_id = ${constituencyId} and mls.last_updated_at >= ${freshAfter}
-  `;
-  if (rows.length === 0) return { hasData: false, leadsActive: false, spendMtd: null };
-  return { hasData: true, leadsActive: rows[0].leads_active, spendMtd: rows[0].spend_mtd === null ? null : Number(rows[0].spend_mtd) };
-}
-
 export type ChannelPostItem = {
   id: string;
   platform: "facebook" | "instagram";

@@ -4,7 +4,7 @@ import { getConstituencyDetail } from "@/lib/rankings";
 import { getAdsForConstituency } from "@/lib/ads";
 import { getCurrentSocialAccounts, listConstituencies } from "@/lib/db";
 import { getTiktokVideosForConstituency } from "@/lib/tiktokVideos";
-import { getRecentChannelActivity, getChannelPostsForConstituency, getLeadgenSnapshot } from "@/lib/channelActivity";
+import { getRecentChannelActivity, getChannelPostsForConstituency } from "@/lib/channelActivity";
 import { RECENT_WINDOW_DAYS } from "@/lib/adRecency";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import { tierForCount, untrackedItem, type DreamWeekItem } from "@/lib/dreamWeek";
@@ -26,7 +26,7 @@ export default async function ConstituencyDetailPage({
   const sp = await searchParams;
   const period = typeof sp.period === "string" ? sp.period : undefined;
 
-  const [detail, ads, socialAccounts, tiktokVideos, channelActivity, channelPosts, leadgen, allConstituencies] =
+  const [detail, ads, socialAccounts, tiktokVideos, channelActivity, channelPosts, allConstituencies] =
     await Promise.all([
       getConstituencyDetail(id, period),
       getAdsForConstituency(id),
@@ -34,7 +34,6 @@ export default async function ConstituencyDetailPage({
       getTiktokVideosForConstituency(id, PREVIEW_COUNT),
       getRecentChannelActivity(id),
       getChannelPostsForConstituency(id, PREVIEW_COUNT),
-      getLeadgenSnapshot(id),
       listConstituencies(),
     ]);
   if (!detail) notFound();
@@ -86,60 +85,23 @@ export default async function ConstituencyDetailPage({
     "Can't distinguish post type from a post count yet"
   );
 
-  // The real "Lead Generation ad" signal from lead-gen ad tracking takes
-  // priority when available — the public Ad Library data behind
-  // adSpend.recencyStatus can't tell campaign objective apart, so a
-  // generically-active ad isn't proof of the specific Lead Gen ad this
-  // benchmark asks for. Falls back to that general signal only when we
-  // have no lead-gen data for this rep at all.
-  let adItem: DreamWeekItem;
-  if (leadgen.hasData) {
-    const spend = leadgen.spendMtd ?? 0;
-    if (leadgen.leadsActive && spend >= 50) {
-      adItem = {
-        key: "ads",
-        title: "Always-on ad campaign (~£100/month)",
-        target: "Active, roughly £100/month",
-        tier: "green",
-        points: 2,
-        detail: `Lead Gen ad active, £${spend.toFixed(0)} spent this month`,
-      };
-    } else if (leadgen.leadsActive) {
-      adItem = {
-        key: "ads",
-        title: "Always-on ad campaign (~£100/month)",
-        target: "Active, roughly £100/month",
-        tier: "amber",
-        points: 1,
-        detail: `Lead Gen ad active, £${spend.toFixed(0)} spent this month so far`,
-      };
-    } else {
-      adItem = {
-        key: "ads",
-        title: "Always-on ad campaign (~£100/month)",
-        target: "Active, roughly £100/month",
-        tier: "red",
-        points: 0,
-        detail: "No Lead Generation ad active",
-      };
-    }
-  } else {
-    const AD_TIER = {
-      active: { tier: "green" as const, points: 2, detail: "Ad running now (general activity, no Lead Gen data yet)" },
-      recent: { tier: "amber" as const, points: 1, detail: "Ran recently, not running now" },
-      stale: { tier: "red" as const, points: 0, detail: "No recent ad activity" },
-      no_advertiser: { tier: "unknown" as const, points: 0, detail: "No advertiser matched yet" },
-    };
-    const adInfo = AD_TIER[current.adSpend.recencyStatus];
-    adItem = {
-      key: "ads",
-      title: "Always-on ad campaign (~£100/month)",
-      target: "Active, roughly £100/month",
-      tier: adInfo.tier,
-      points: adInfo.points,
-      detail: adInfo.detail,
-    };
-  }
+  // The public Ad Library can't tell campaign objective apart, so this shows
+  // general ad activity rather than a specific Lead Generation ad.
+  const AD_TIER = {
+    active: { tier: "green" as const, points: 2, detail: "Ad running now" },
+    recent: { tier: "amber" as const, points: 1, detail: "Ran recently, not running now" },
+    stale: { tier: "red" as const, points: 0, detail: "No recent ad activity" },
+    no_advertiser: { tier: "unknown" as const, points: 0, detail: "No advertiser matched yet" },
+  };
+  const adInfo = AD_TIER[current.adSpend.recencyStatus];
+  const adItem: DreamWeekItem = {
+    key: "ads",
+    title: "Always-on ad campaign (~£100/month)",
+    target: "Active, roughly £100/month",
+    tier: adInfo.tier,
+    points: adInfo.points,
+    detail: adInfo.detail,
+  };
 
   const groupItem: DreamWeekItem = current.group.hasData
     ? {

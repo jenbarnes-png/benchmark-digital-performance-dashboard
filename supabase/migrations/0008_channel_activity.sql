@@ -1,7 +1,5 @@
 -- Facebook/Instagram organic activity, newsletter sends, and lead-gen
--- ad status, sourced from Hani's "MP Packages | Data Warehouse" sheet
--- (same public-data posture as the TikTok warehouse — an internal
--- Brandwatch-backed pipeline, not something we scrape ourselves).
+-- ad status, from the original data supplier (since replaced by the Crete store).
 
 -- One row per representative per platform per day — mirrors the
 -- sheet's daily grain directly rather than pre-aggregating, so weekly
@@ -26,8 +24,7 @@ create table if not exists social_activity_daily (
   unique (representative_id, platform, date)
 );
 
--- One row per newsletter email detected (via Gmail inbox monitoring
--- on Hani's end) — external_message_id is the natural dedupe key.
+-- One row per newsletter email detected (originally via Gmail inbox monitoring) — external_message_id is the natural dedupe key.
 create table if not exists newsletter_events (
   id uuid primary key default gen_random_uuid(),
   representative_id uuid not null references representatives(id),

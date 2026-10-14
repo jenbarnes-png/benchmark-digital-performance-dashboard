@@ -162,8 +162,7 @@ export async function listCohorts(): Promise<string[]> {
  * newsletter_sends still count, since Facebook Group and manually-
  * reported figures are real too) but critically also the automated
  * pipelines that actually drive most of the scoring: tiktok_videos,
- * social_activity_daily (Facebook/Instagram), newsletter_events, and
- * meta_leadgen_snapshot. The badge used to only check the manual-entry
+ * social_activity_daily (Facebook/Instagram) and newsletter_events. The badge used to only check the manual-entry
  * tables, so it could say "last updated 18 Aug" while TikTok/channel
  * data had actually synced an hour ago — technically accurate about
  * those four tables, but misleading as a "is this live" signal.
@@ -178,7 +177,6 @@ export async function getLastUpdated(): Promise<string | null> {
       union all select max(created_at) from tiktok_videos
       union all select max(created_at) from social_activity_daily
       union all select max(created_at) from newsletter_events
-      union all select max(created_at) from meta_leadgen_snapshot
     ) x
   `;
   return row?.last_updated ?? null;
@@ -233,8 +231,7 @@ export type PeriodMetrics = {
     postedIn7Days: boolean;
   };
   /**
-   * The real, automated newsletter-send signal from Hani's data
-   * warehouse (newsletter_events) — distinct from the older
+   * The newsletter-send signal (newsletter_events, reported by hand for now) — distinct from the older
    * `newsletter` field above, which is the manually-reported
    * newsletter_sends peer-relative metric.
    */
@@ -1071,10 +1068,6 @@ export async function getConstituencyDetail(
       union all
         select max(ne.created_at) from newsletter_events ne
         join representatives r on r.id = ne.representative_id and r.ended_at is null
-        where r.constituency_id = ${constituencyId}
-      union all
-        select max(mls.created_at) from meta_leadgen_snapshot mls
-        join representatives r on r.id = mls.representative_id and r.ended_at is null
         where r.constituency_id = ${constituencyId}
     ) x
   `;

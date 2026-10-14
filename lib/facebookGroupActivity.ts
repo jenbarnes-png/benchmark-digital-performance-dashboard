@@ -2,7 +2,7 @@ import { sql } from "./db";
 
 // Manual entry for Facebook Group posts — the one part of "organic
 // Facebook & Instagram" activity that still has no automated source
-// (Hani's warehouse covers feed posts, not group posts). Submissions
+// (the Crete store covers feed posts, not group posts). Submissions
 // land as 'pending' — has_data stays false, so nothing changes on the
 // tracker — until an approver approves, either from the email link or
 // the Admin queue below.
