@@ -28,7 +28,7 @@ export default async function ConstituencyPostsPage({
           All Facebook &amp; Instagram posts — {constituency.name}
         </h1>
         <p className="mt-1 text-black/70 dark:text-white/70">
-          Top posts in the last 30 days, ranked by reach.
+          Top posts in the last 30 days, ranked by engagement.
         </p>
       </div>
       {posts.length > 0 ? (

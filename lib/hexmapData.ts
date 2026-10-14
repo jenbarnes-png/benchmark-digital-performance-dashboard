@@ -114,7 +114,7 @@ export async function getTiktokHexStatuses(): Promise<Map<string, ConstituencyHe
   return map;
 }
 
-/** Facebook or Instagram organic posting as of right now — green within 7 days, amber within 30, red beyond that or tracked-but-nothing-posted. "Not tracked" means Hani's warehouse has no data at all for this MP on this platform, not a confirmed zero — see the blank-cell handling in lib/channelDataSync.ts. */
+/** Facebook or Instagram organic posting as of right now — green within 7 days, amber within 30, red beyond that or tracked-but-nothing-posted. "Not tracked" means the Crete store has no data at all for this MP on this platform, not a confirmed zero. */
 async function getChannelPlatformHexStatuses(platform: "facebook" | "instagram"): Promise<Map<string, ConstituencyHexStatus>> {
   const rows = await sql<
     { constituency_id: string; name: string; has_data: boolean; last_posted_at: string | null }[]

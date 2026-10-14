@@ -87,7 +87,7 @@ export default async function NationalDashboardPage() {
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Facebook &amp; Instagram shout-outs</h2>
         <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-          The 3 best-performing Facebook/Instagram posts across the pilot in the last 30 days, ranked by reach.
+          The 3 best-performing Facebook/Instagram posts across the pilot in the last 30 days, ranked by engagement.
         </p>
         {topChannelPosts.length > 0 ? (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -27,9 +27,15 @@ export default function ChannelPostCard({
         ) : (
           <span className="font-medium capitalize">{post.platform}</span>
         )}
-        <span className="shrink-0 tabular-nums" title="Reach">
-          👁 {formatCount(post.reach)}
-        </span>
+        {post.reach !== null ? (
+          <span className="shrink-0 tabular-nums" title="Reach">
+            👁 {formatCount(post.reach)}
+          </span>
+        ) : (
+          <span className="shrink-0 tabular-nums" title="Likes, comments and shares">
+            ♥ {formatCount(post.engagement)}
+          </span>
+        )}
       </div>
     </div>
   );

@@ -24,6 +24,12 @@ const sections = [
     available: true,
   },
   {
+    href: "/admin/newsletters",
+    label: "Newsletters sent",
+    description: "Record by hand when an MP has sent a newsletter. Stop-gap while automatic detection is rebuilt.",
+    available: true,
+  },
+  {
     href: null,
     label: "Ad spend data",
     description: "Manual entry for data that can't be pulled in automatically.",

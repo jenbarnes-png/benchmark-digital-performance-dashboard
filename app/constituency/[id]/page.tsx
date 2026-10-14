@@ -86,7 +86,7 @@ export default async function ConstituencyDetailPage({
     "Can't distinguish post type from a post count yet"
   );
 
-  // The real "Lead Generation ad" signal from Hani's ads tracking takes
+  // The real "Lead Generation ad" signal from lead-gen ad tracking takes
   // priority when available — the public Ad Library data behind
   // adSpend.recencyStatus can't tell campaign objective apart, so a
   // generically-active ad isn't proof of the specific Lead Gen ad this
@@ -315,7 +315,7 @@ export default async function ConstituencyDetailPage({
             </Link>
           </div>
           <p className="mt-1 text-sm text-black/60 dark:text-white/60">
-            Top posts in the last 30 days, ranked by reach.
+            Top posts in the last 30 days, ranked by engagement.
           </p>
           {channelPosts.length > 0 ? (
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

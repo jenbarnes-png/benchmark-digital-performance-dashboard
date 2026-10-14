@@ -1,4 +1,4 @@
-name: Sync live data from Hani's warehouse
+name: Sync live data from Crete and Meta
 
 # Runs the sync scripts directly on the GitHub Actions runner, against
 # the same Supabase database the deployed site reads from — not via
@@ -23,16 +23,16 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+      ES_URL: ${{ secrets.ES_URL }}
+      ES_API_KEY: ${{ secrets.ES_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: npm ci
-      - name: Sync TikTok
-        run: npx tsx scripts/sync_tiktok.mts
-      - name: Sync Facebook/Instagram/newsletter/lead-gen
-        run: npx tsx scripts/sync_channel_data.mts
+      - name: Sync Facebook, Instagram and TikTok from Crete
+        run: npx tsx scripts/sync_crete.mts
       - name: Sync Meta ads
         run: npx tsx scripts/sync_meta_ads.mts
         continue-on-error: true # Meta's token can expire independently of this job; don't fail the whole run over it

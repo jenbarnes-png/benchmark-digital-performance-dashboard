@@ -64,11 +64,14 @@ export type LeadgenSnapshot = {
 
 /** The real "is there a Lead Generation ad running" signal — more precise than the general ad-recency status, which can't distinguish campaign objective. */
 export async function getLeadgenSnapshot(constituencyId: string): Promise<LeadgenSnapshot> {
+  // Only trust a snapshot that was refreshed recently. This feed came from the old
+  // data supplier and is no longer updated, so older values must not read as current.
+  const freshAfter = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const rows = await sql<{ leads_active: boolean; spend_mtd: string | null }[]>`
     select mls.leads_active, mls.spend_mtd
     from meta_leadgen_snapshot mls
     join representatives r on r.id = mls.representative_id and r.ended_at is null
-    where r.constituency_id = ${constituencyId}
+    where r.constituency_id = ${constituencyId} and mls.last_updated_at >= ${freshAfter}
   `;
   if (rows.length === 0) return { hasData: false, leadsActive: false, spendMtd: null };
   return { hasData: true, leadsActive: rows[0].leads_active, spendMtd: rows[0].spend_mtd === null ? null : Number(rows[0].spend_mtd) };
@@ -114,7 +117,7 @@ function toChannelPostItem(r: PostRow): ChannelPostItem {
   };
 }
 
-/** Best-performing individual Facebook/Instagram posts nationally in the last 30 days, ranked by reach — one per MP, so a single prolific office can't take every shout-out slot. */
+/** Best-performing individual Facebook/Instagram posts nationally in the last 30 days, ranked by engagement (likes, comments and shares) — one per MP, so a single prolific office can't take every shout-out slot. */
 export async function getTopChannelPostsNational(limit = 3): Promise<ChannelPostItem[]> {
   const windowStart = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
@@ -130,7 +133,7 @@ export async function getTopChannelPostsNational(limit = 3): Promise<ChannelPost
     join representatives r on r.id = sad.representative_id and r.ended_at is null
     join constituencies c on c.id = r.constituency_id
     where sad.top_post_url is not null and sad.date >= ${windowStart} and not c.is_hidden
-    order by sad.top_post_reach desc nulls last
+    order by sad.top_post_engagement desc nulls last, sad.top_post_reach desc nulls last
     limit ${limit * 10}
   `;
 
@@ -145,7 +148,7 @@ export async function getTopChannelPostsNational(limit = 3): Promise<ChannelPost
   return deduped;
 }
 
-/** A constituency's own best Facebook/Instagram posts in the last 30 days, ranked by reach. */
+/** A constituency's own best Facebook/Instagram posts in the last 30 days, ranked by engagement. */
 export async function getChannelPostsForConstituency(
   constituencyId: string,
   limit = 6
@@ -161,7 +164,7 @@ export async function getChannelPostsForConstituency(
     join representatives r on r.id = sad.representative_id and r.ended_at is null
     join constituencies c on c.id = r.constituency_id
     where c.id = ${constituencyId} and sad.top_post_url is not null and sad.date >= ${windowStart}
-    order by sad.top_post_reach desc nulls last
+    order by sad.top_post_engagement desc nulls last, sad.top_post_reach desc nulls last
     limit ${limit}
   `;
 
