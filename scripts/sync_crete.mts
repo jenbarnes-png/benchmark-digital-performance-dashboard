@@ -4,15 +4,7 @@
 // Run with: npx tsx --env-file=.env.local scripts/sync_crete.mts
 import { sql } from "../lib/db";
 import { syncCrete } from "../lib/creteSync";
-import { aggregateWeeklyChannelActivity } from "../lib/channelAggregation";
-
-function mondayOnOrBefore(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getUTCDay();
-  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1) - day);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
-}
+import { rollupRecentWeeks } from "../lib/channelAggregation";
 
 console.log("Syncing Facebook, Instagram and TikTok from Crete...");
 const summary = await syncCrete();
@@ -33,13 +25,7 @@ for (const [platform, p] of Object.entries(summary.platforms)) {
 }
 console.log(`\nUpserted ${summary.dailyRowsUpserted} Facebook/Instagram daily rows and ${summary.tiktokVideosUpserted} TikTok videos.`);
 
-// Roll the last two weeks up into the weekly tables the platform cards read.
-for (const offset of [0, 7]) {
-  const start = mondayOnOrBefore(new Date());
-  start.setUTCDate(start.getUTCDate() - offset);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 6);
-  await aggregateWeeklyChannelActivity(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10));
-}
+// Roll the last four weeks up into the weekly tables the platform cards read.
+await rollupRecentWeeks(4);
 console.log("Weekly roll-ups updated.");
 await sql.end();

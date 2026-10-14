@@ -12,6 +12,7 @@ import { scoreForChannel, CHANNEL_MAX_POINTS } from "./channelScoring";
 import { scoreForNewsletter, NEWSLETTER_MAX_POINTS } from "./newsletterScoring";
 import { scoreForGroup, GROUP_MAX_POINTS } from "./groupScoring";
 import { scoreForSubscriberGrowth, SUBSCRIBER_MAX_POINTS, SUBSCRIBER_GROWTH_TARGET } from "./subscriberScoring";
+import { TRACKING_START } from "./trackingStart";
 
 // Used only when literally nothing has been tracked yet (periods.length
 // === 0 below) — the real total is always computed from the actual
@@ -95,6 +96,7 @@ export async function listPeriods(): Promise<Period[]> {
         union select period_start, period_end from facebook_group_activity
         union select period_start, period_end from newsletter_sends
       ) p
+      where period_start >= ${TRACKING_START}
     `,
     // Deliberately excludes ads.ad_delivery_start_time — Meta's Ad
     // Library reports when an ad itself first started running, which
@@ -120,7 +122,9 @@ export async function listPeriods(): Promise<Period[]> {
     // future data source has its own long-ago outlier timestamp — 26
     // weeks comfortably covers this pilot's real history.
     const maxLookback = new Date(currentWeekMonday.getTime() - 26 * 7 * 24 * 60 * 60 * 1000);
-    const earliestMonday = mondayOnOrBefore(new Date(earliestRow.earliest));
+    // Weeks start at TRACKING_START rather than at the first stored row, so the
+    // weeks covered by a backfill appear as soon as the data lands.
+    const earliestMonday = mondayOnOrBefore(new Date(TRACKING_START));
     let cursor = earliestMonday.getTime() < maxLookback.getTime() ? maxLookback : earliestMonday;
     while (cursor.getTime() <= currentWeekMonday.getTime()) {
       weekStarts.add(toDateStr(cursor));

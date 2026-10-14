@@ -55,3 +55,22 @@ export async function aggregateWeeklyChannelActivity(periodStart: string, period
     `;
   }
 }
+
+function mondayOnOrBefore(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1) - day);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Re-rolls the current week and the previous `weeks - 1` weeks, so a backfill is picked up. */
+export async function rollupRecentWeeks(weeks = 4): Promise<void> {
+  for (let i = 0; i < weeks; i++) {
+    const start = mondayOnOrBefore(new Date());
+    start.setUTCDate(start.getUTCDate() - 7 * i);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 6);
+    await aggregateWeeklyChannelActivity(start.toISOString().slice(0, 10), end.toISOString().slice(0, 10));
+  }
+}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncCrete } from "@/lib/creteSync";
-import { aggregateWeeklyChannelActivity } from "@/lib/channelAggregation";
+import { rollupRecentWeeks } from "@/lib/channelAggregation";
 import { syncMetaAds } from "@/lib/adSpendSync";
 import { aggregateRecentAdSpend } from "@/lib/adSpendAggregation";
 
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 
   try {
     const crete = await syncCrete();
-    await aggregateWeeklyChannelActivity(periodStart, periodEnd);
+    await rollupRecentWeeks(4);
     results.crete = crete;
   } catch (error) {
     results.crete = { error: String(error) };
