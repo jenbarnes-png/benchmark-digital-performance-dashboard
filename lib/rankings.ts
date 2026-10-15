@@ -248,6 +248,10 @@ export type PeriodMetrics = {
     points: number;
     hasData: boolean;
     grewByAtLeastTarget: boolean;
+    /** Latest declared list size, the month it was declared for, and the change vs the month before (if declared). */
+    listSize: number | null;
+    listSizeMonth: string | null;
+    listChange: number | null;
   };
 };
 
@@ -492,19 +496,51 @@ async function buildMetricsIndex() {
   function subscriberGrowthAsOf(
     constituencyId: string,
     referenceDate: Date
-  ): { hasComparison: boolean; grewByAtLeastTarget: boolean } {
+  ): {
+    hasComparison: boolean;
+    grewByAtLeastTarget: boolean;
+    listSize: number | null;
+    listSizeMonth: string | null;
+    listChange: number | null;
+  } {
+    const none = { hasComparison: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null };
     const byMonth = subscriberCountsByConstituency.get(constituencyId);
-    if (!byMonth) return { hasComparison: false, grewByAtLeastTarget: false };
+    if (!byMonth) return none;
 
     const thisMonthStart = toDateStr(new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth(), 1)));
     const prevMonthStart = toDateStr(
       new Date(Date.UTC(referenceDate.getUTCFullYear(), referenceDate.getUTCMonth() - 1, 1))
     );
+
+    // The latest declared size as of the reference date, whichever month it was declared for.
+    const latestMonth = Array.from(byMonth.keys())
+      .filter((m) => m <= thisMonthStart)
+      .sort()
+      .at(-1);
+    let listSize: number | null = null;
+    let listSizeMonth: string | null = null;
+    let listChange: number | null = null;
+    if (latestMonth) {
+      listSize = byMonth.get(latestMonth)!;
+      listSizeMonth = latestMonth;
+      const monthBefore = toDateStr(
+        new Date(Date.UTC(Number(latestMonth.slice(0, 4)), Number(latestMonth.slice(5, 7)) - 2, 1))
+      );
+      const before = byMonth.get(monthBefore);
+      listChange = before === undefined ? null : listSize - before;
+    }
+
     const thisCount = byMonth.get(thisMonthStart);
     const prevCount = byMonth.get(prevMonthStart);
-    if (thisCount === undefined || prevCount === undefined) return { hasComparison: false, grewByAtLeastTarget: false };
+    if (thisCount === undefined || prevCount === undefined) return { ...none, listSize, listSizeMonth, listChange };
 
-    return { hasComparison: true, grewByAtLeastTarget: thisCount - prevCount >= SUBSCRIBER_GROWTH_TARGET };
+    return {
+      hasComparison: true,
+      grewByAtLeastTarget: thisCount - prevCount >= SUBSCRIBER_GROWTH_TARGET,
+      listSize,
+      listSizeMonth,
+      listChange,
+    };
   }
 
   const advertiserConstituencyIds = new Set(advertiserRows.map((r) => r.constituency_id));
@@ -605,6 +641,9 @@ async function buildMetricsIndex() {
     subscriberGrowth: {
       hasComparison: boolean;
       grewByAtLeastTarget: boolean;
+      listSize: number | null;
+    listSizeMonth: string | null;
+    listChange: number | null;
     };
   };
   const rawPoints: RawPoint[] = [];
@@ -702,6 +741,9 @@ async function buildMetricsIndex() {
         subscriberGrowth: {
           hasComparison: subscriberGrowthInfo.hasComparison,
           grewByAtLeastTarget: subscriberGrowthInfo.grewByAtLeastTarget,
+          listSize: subscriberGrowthInfo.listSize,
+          listSizeMonth: subscriberGrowthInfo.listSizeMonth,
+          listChange: subscriberGrowthInfo.listChange,
         },
       });
     }
@@ -808,6 +850,9 @@ async function buildMetricsIndex() {
         points: point.subscriberGrowth.grewByAtLeastTarget ? SUBSCRIBER_MAX_POINTS : 0,
         hasData: point.subscriberGrowth.hasComparison,
         grewByAtLeastTarget: point.subscriberGrowth.grewByAtLeastTarget,
+        listSize: point.subscriberGrowth.listSize,
+        listSizeMonth: point.subscriberGrowth.listSizeMonth,
+        listChange: point.subscriberGrowth.listChange,
       },
     });
   }
@@ -837,7 +882,14 @@ export type RankingRow = {
   /** Manually-reported Facebook group posts this week — see facebook_group_activity. */
   group: { hasData: boolean; postCount: number };
   /** hasData here means "has two consecutive approved months to compare" — see subscriberGrowthAsOf. */
-  subscriberGrowth: { hasData: boolean; grewByAtLeastTarget: boolean };
+  subscriberGrowth: {
+    hasData: boolean;
+    grewByAtLeastTarget: boolean;
+    /** Latest declared list size (null if none declared), its month, and change vs the month before. */
+    listSize: number | null;
+    listSizeMonth: string | null;
+    listChange: number | null;
+  };
 };
 
 export type RankingsResult = {
@@ -887,7 +939,7 @@ export async function getRankings(filters: {
         channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
         newsletterActivity: { hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
         group: { hasData: false, postCount: 0 },
-        subscriberGrowth: { hasData: false, grewByAtLeastTarget: false },
+        subscriberGrowth: { hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
   }
@@ -935,7 +987,7 @@ export async function getRankings(filters: {
           sentThisCalendarMonth: false,
         },
         group: currentMetrics?.group ?? { hasData: false, postCount: 0 },
-        subscriberGrowth: currentMetrics?.subscriberGrowth ?? { hasData: false, grewByAtLeastTarget: false },
+        subscriberGrowth: currentMetrics?.subscriberGrowth ?? { hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
       };
     });
 
@@ -959,7 +1011,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   },
   channel: { points: 0, hasData: false, reelIn7Days: false, postedIn7Days: false },
   newsletterActivity: { points: 0, hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
-  subscriberGrowth: { points: 0, hasData: false, grewByAtLeastTarget: false },
+  subscriberGrowth: { points: 0, hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
 };
 
 export type ConstituencyDetail = {

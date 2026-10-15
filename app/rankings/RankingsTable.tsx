@@ -21,6 +21,7 @@ type SortKey =
   | "newsletterSent"
   | "newsletterMonth"
   | "groupPosts"
+  | "listSize"
   | "subscriberGrowth"
   | "change";
 type SortDir = "asc" | "desc";
@@ -40,6 +41,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   newsletterSent: "desc",
   newsletterMonth: "desc",
   groupPosts: "desc",
+  listSize: "desc",
   subscriberGrowth: "desc",
   change: "desc",
 };
@@ -47,6 +49,12 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
 function formatCount(n: number | null): string {
   if (n === null) return "—";
   return n.toLocaleString();
+}
+
+/** "2026-09-01" -> "Sep". */
+function formatListMonth(monthStart: string | null): string {
+  if (!monthStart) return "";
+  return new Date(`${monthStart}T00:00:00Z`).toLocaleString("en-GB", { month: "short", timeZone: "UTC" });
 }
 
 function YesNoCell({ hasData, value }: { hasData: boolean; value: boolean }) {
@@ -120,6 +128,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       newsletterSent: r.newsletterActivity.hasData ? (r.newsletterActivity.sentInLast30Days ? 1 : 0) : -1,
       newsletterMonth: r.newsletterActivity.hasData ? (r.newsletterActivity.sentThisCalendarMonth ? 1 : 0) : -1,
       groupPosts: r.group.hasData ? r.group.postCount : -1,
+      listSize: r.subscriberGrowth.listSize ?? -1,
       subscriberGrowth: r.subscriberGrowth.hasData ? (r.subscriberGrowth.grewByAtLeastTarget ? 1 : 0) : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
     }));
@@ -153,6 +162,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Newsletter (last 30 days)", "newsletterSent"],
                 ["Newsletter sent this month", "newsletterMonth"],
                 ["Facebook group posts (manual)", "groupPosts"],
+                ["Email list size (declared)", "listSize"],
                 ["Subscribers +20 this month", "subscriberGrowth"],
                 ["Change", "change"],
               ] as [string, SortKey][]
@@ -242,6 +252,20 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
               <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
                 {r.group.hasData ? formatCount(r.group.postCount) : "—"}
               </td>
+              <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
+                {r.subscriberGrowth.listSize === null ? (
+                  "—"
+                ) : (
+                  <>
+                    {r.subscriberGrowth.listSize.toLocaleString()}
+                    <span className="block text-xs text-black/50 dark:text-white/50">
+                      {formatListMonth(r.subscriberGrowth.listSizeMonth)}
+                      {r.subscriberGrowth.listChange !== null &&
+                        ` · ${r.subscriberGrowth.listChange >= 0 ? "+" : ""}${r.subscriberGrowth.listChange.toLocaleString()}`}
+                    </span>
+                  </>
+                )}
+              </td>
               <td className="px-4 py-3">
                 <YesNoCell hasData={r.subscriberGrowth.hasData} value={r.subscriberGrowth.grewByAtLeastTarget} />
               </td>
@@ -252,7 +276,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={15} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={17} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
