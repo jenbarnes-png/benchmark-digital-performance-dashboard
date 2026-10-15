@@ -77,34 +77,20 @@ export async function listPendingSubscriberCountEntries(): Promise<SubscriberCou
   return rows.map(toEntry);
 }
 
-export async function getSubscriberCountEntry(
-  constituencyId: string,
-  monthStart: string
-): Promise<SubscriberCountEntry | undefined> {
-  const rows = await sql<Row[]>`
-    ${SELECT} where sc.constituency_id = ${constituencyId} and sc.month_start = ${monthStart}
-  `;
-  return rows[0] ? toEntry(rows[0]) : undefined;
-}
-
 async function getEntryByToken(token: string): Promise<SubscriberCountEntry | undefined> {
   const rows = await sql<Row[]>`${SELECT} where sc.approval_token = ${token}`;
   return rows[0] ? toEntry(rows[0]) : undefined;
 }
 
-/** Always lands as 'pending' — never counts toward scoring until approved. */
+/**
+ * Always lands as 'pending' — never counts toward scoring until approved.
+ * Each submission is its own record: the first count logged is the baseline and
+ * later ones show growth, so a new count never overwrites an earlier one.
+ */
 export async function submitSubscriberCountEntry(input: SubscriberCountInput): Promise<SubscriberCountEntry> {
   const [row] = await sql<Row[]>`
     insert into subscriber_counts (constituency_id, month_start, month_end, subscriber_count, source, has_data, status)
     values (${input.constituencyId}, ${input.monthStart}, ${input.monthEnd}, ${input.subscriberCount}, 'manual', false, 'pending')
-    on conflict (constituency_id, month_start) do update set
-      month_end = excluded.month_end,
-      subscriber_count = excluded.subscriber_count,
-      has_data = false,
-      status = 'pending',
-      approval_token = gen_random_uuid(),
-      approved_by = null,
-      approved_at = null
     returning id::text, constituency_id, month_start::text, month_end::text, subscriber_count, has_data, status, approval_token::text, approved_by, approved_at::text
   `;
   const [withName] = await sql<{ constituency_name: string }[]>`
@@ -149,9 +135,6 @@ export async function rejectSubscriberCountEntry(
   return getEntryByToken(token) as Promise<SubscriberCountEntry>;
 }
 
-export async function deleteSubscriberCountEntry(constituencyId: string, monthStart: string): Promise<void> {
-  await sql`
-    delete from subscriber_counts
-    where constituency_id = ${constituencyId} and month_start = ${monthStart}
-  `;
+export async function deleteSubscriberCountEntry(id: string): Promise<void> {
+  await sql`delete from subscriber_counts where id = ${id}`;
 }

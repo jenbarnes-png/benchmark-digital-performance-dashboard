@@ -22,10 +22,11 @@ export default async function NewSubscriberCountPage({ searchParams }: PageProps
         </p>
       )}
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Log subscriber count for a month</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Log a subscriber count</h1>
         <p className="mt-2 max-w-md text-black/70 dark:text-white/70">
-          Enter the total email subscriber list size for one constituency, for the month you
-          choose. Sent for approval before it counts.
+          Enter the total email subscriber list size for one constituency. Log it again whenever it
+          changes: the growth point is earned once the list is 20 or more above the first count.
+          Sent for approval before it counts.
         </p>
       </div>
       <SubscriberForm

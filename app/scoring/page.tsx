@@ -73,11 +73,11 @@ const ROWS: { metric: string; points: number; source: "automatic" | "manual"; de
     source: "manual",
     detail: (
       <>
-        Grew the list by {SUBSCRIBER_GROWTH_TARGET}+ versus last month. Log it monthly in{" "}
+        Grew the list by {SUBSCRIBER_GROWTH_TARGET}+ since the first count logged (or since last month&apos;s latest count). Log a new count whenever the list changes in{" "}
         <a href="/admin/subscribers" className="underline hover:text-black dark:hover:text-white">
           Subscriber counts
         </a>
-        . Needs two consecutive approved months to compare.
+        . Needs a starting count and a later one, both approved.
       </>
     ),
   },

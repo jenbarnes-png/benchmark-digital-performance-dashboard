@@ -64,9 +64,9 @@ export async function submitSubscriberCountAction(_prevState: FormState, formDat
   redirect((await isClientUser()) ? "/admin/subscribers/new?submitted=1" : "/admin/subscribers");
 }
 
-export async function deleteSubscriberCountAction(constituencyId: string, monthStart: string): Promise<void> {
+export async function deleteSubscriberCountAction(id: string): Promise<void> {
   await assertStaff();
-  await deleteSubscriberCountEntry(constituencyId, monthStart);
+  await deleteSubscriberCountEntry(id);
   revalidatePath("/admin/subscribers");
   redirect("/admin/subscribers");
 }

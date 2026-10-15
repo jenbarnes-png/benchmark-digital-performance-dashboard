@@ -21,16 +21,16 @@ export default async function SubscribersPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Subscriber counts (monthly)</h1>
           <p className="mt-2 max-w-2xl text-black/70 dark:text-white/70">
-            Total email subscriber list size, logged by hand once a month — feeds the Newsletter
-            subscriber-growth point. Each submission needs approval before it
-            counts.
+            Total email subscriber list size, logged by hand. Log it again whenever it changes: the first
+            count is the starting point, and the growth point is earned once the list is 20 or more above
+            it. Each submission needs approval before it counts.
           </p>
         </div>
         <Link
           href="/admin/subscribers/new"
           className="whitespace-nowrap rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90"
         >
-          Log a month
+          Log a count
         </Link>
       </div>
 
@@ -50,7 +50,7 @@ export default async function SubscribersPage() {
           <tbody>
             {entries.map((e) => (
               <tr
-                key={`${e.constituencyId}|${e.monthStart}`}
+                key={e.id}
                 className="border-b border-black/5 last:border-0 dark:border-white/10"
               >
                 <td className="px-4 py-3 font-medium">{e.constituencyName}</td>
@@ -73,13 +73,7 @@ export default async function SubscribersPage() {
                         Review
                       </Link>
                     )}
-                    <Link
-                      href={`/admin/subscribers/${e.constituencyId}/${e.monthStart}/edit`}
-                      className="font-medium text-black/70 hover:text-black hover:underline dark:text-white/70 dark:hover:text-white"
-                    >
-                      Edit
-                    </Link>
-                    <form action={deleteSubscriberCountAction.bind(null, e.constituencyId, e.monthStart)}>
+                    <form action={deleteSubscriberCountAction.bind(null, e.id)}>
                       <button type="submit" className="font-medium text-red-700 hover:underline dark:text-red-400">
                         Delete
                       </button>

@@ -67,7 +67,7 @@ export default function SubscriberForm({
 
       <div>
         <label htmlFor="subscriberCount" className="block text-sm font-medium">
-          Total email subscribers, end of month
+          Total email subscribers right now
         </label>
         <input
           id="subscriberCount"
@@ -76,12 +76,12 @@ export default function SubscriberForm({
           min={0}
           step={1}
           defaultValue={initialValues?.subscriberCount ?? ""}
-          placeholder="Leave blank if not tracked this month"
+          placeholder="Leave blank if not tracked"
           className="mt-1 w-full rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
         />
         <p className="mt-1 text-xs text-black/50 dark:text-white/50">
-          The total list size, not the number of new sign-ups — growth is worked out from last
-          month&apos;s total.
+          The total list size, not the number of new sign-ups. Log a new count whenever it changes:
+          growth is worked out from the first count logged (or last month&apos;s latest count).
         </p>
       </div>
 
