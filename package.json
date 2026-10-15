@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:crete": "tsx --env-file=.env.local scripts/sync_crete.mts",
+    "sync:crete:dry": "tsx --env-file=.env.local scripts/sync_crete.mts --dry-run",
+    "sync:meta": "tsx --env-file=.env.local scripts/sync_meta_ads.mts",
+    "sync:meta:dry": "tsx --env-file=.env.local scripts/sync_meta_ads.mts --dry-run",
+    "check:crete": "tsx --env-file=.env.local scripts/check_crete_coverage.mts",
+    "test:growth": "tsx scripts/test_subscriber_growth.mts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "csv-parse": "^7.0.2",

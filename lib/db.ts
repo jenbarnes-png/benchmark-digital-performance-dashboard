@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { requireEnv } from "./env";
 
 // Shared Postgres connection (Supabase). Exported so other query modules
 // (e.g. lib/rankings.ts) can run their own queries against the same tables
@@ -30,10 +31,13 @@ const globalForDb = globalThis as unknown as { sql?: ReturnType<typeof postgres>
 // across reconnects — a no-op cost in session mode, so safe either way.
 export const sql =
   globalForDb.sql ??
-  postgres(process.env.DATABASE_URL!, {
-    max: process.env.VERCEL ? 1 : 5,
-    prepare: false,
-  });
+  postgres(
+    requireEnv("DATABASE_URL", "the address of the database (Supabase)", "In Supabase: Project Settings > Database > Connection string."),
+    {
+      max: process.env.VERCEL ? 1 : 5,
+      prepare: false,
+    }
+  );
 
 if (process.env.NODE_ENV !== "production") {
   globalForDb.sql = sql;

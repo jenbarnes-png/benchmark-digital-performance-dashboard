@@ -15,13 +15,17 @@
 //
 // Run with: npx tsx --env-file=.env.local scripts/resolve_advertisers.mts
 import { sql } from "../lib/db";
+import { requireEnv } from "../lib/env";
 import { searchAdsByName, type ArchivedAd } from "../lib/meta";
 
-const accessToken = process.env.META_ACCESS_TOKEN;
-if (!accessToken) {
-  console.error("META_ACCESS_TOKEN is not set in .env.local");
-  process.exit(1);
-}
+// WARNING: this token is a secret. Never print it.
+const accessToken = requireEnv(
+  "META_ACCESS_TOKEN",
+  "the key that lets us read Meta's public Ad Library",
+  "Generate one in Meta's Graph API Explorer (developers.facebook.com > Tools)."
+);
+// Try it first with --dry-run: it searches and reports matches but saves nothing.
+const dryRun = process.argv.includes("--dry-run");
 
 function normalizedWords(text: string): string[] {
   return text
@@ -96,12 +100,14 @@ for (const c of constituencies) {
       continue;
     }
 
-    await sql`
-      insert into advertisers (constituency_id, platform, external_page_id, page_name)
-      values (${c.id}, 'meta', ${match.pageId}, ${match.pageName})
-      on conflict (platform, external_page_id) do nothing
-    `;
-    console.log(`Resolved ${c.name} -> Page ID ${match.pageId} (${match.pageName})`);
+    if (!dryRun) {
+      await sql`
+        insert into advertisers (constituency_id, platform, external_page_id, page_name)
+        values (${c.id}, 'meta', ${match.pageId}, ${match.pageName})
+        on conflict (platform, external_page_id) do nothing
+      `;
+    }
+    console.log(`${dryRun ? "[dry run] Would resolve" : "Resolved"} ${c.name} -> Page ID ${match.pageId} (${match.pageName})`);
     resolved++;
   } catch (error) {
     console.error(`Failed to resolve ${c.name} (${c.mp_or_candidate_name}):`, error);

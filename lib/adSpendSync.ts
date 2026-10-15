@@ -29,7 +29,7 @@ export type SyncSummary = {
  * this never creates duplicates), and records today's snapshot of each
  * ad's spend/impressions so we can later work out week-over-week deltas.
  */
-export async function syncMetaAds(accessToken: string): Promise<SyncSummary> {
+export async function syncMetaAds(accessToken: string, options: { dryRun?: boolean } = {}): Promise<SyncSummary> {
   const advertisers = await sql<{ id: string; external_page_id: string }[]>`
     select id, external_page_id from advertisers where platform = 'meta' and ended_at is null
   `;
@@ -98,6 +98,11 @@ export async function syncMetaAds(accessToken: string): Promise<SyncSummary> {
       });
       snapshotInputByExternalId.set(ad.id, { spendMin, spendMax, impressionsMin, impressionsMax, active });
     }
+  }
+
+  if (options.dryRun) {
+    // Read everything from Meta, but write nothing.
+    return { advertisersChecked: advertisers.length, adsSeen, newAds: 0, updatedAds: 0 };
   }
 
   // Batched instead of one insert-and-a-separate-select-for-the-id per

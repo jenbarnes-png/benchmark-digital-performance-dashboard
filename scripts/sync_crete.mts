@@ -1,31 +1,41 @@
 // Pulls Facebook, Instagram and TikTok posts for the pilot MPs from the Crete
-// store (Elasticsearch) into the dashboard database. Safe to re-run.
+// store into the dashboard database. Safe to re-run: every write is an upsert.
 //
-// Run with: npx tsx --env-file=.env.local scripts/sync_crete.mts
+//   Try it first (reads everything, writes nothing):  npm run sync:crete:dry
+//   Run it for real:                                  npm run sync:crete
+//
+// Needs ES_URL, ES_API_KEY and DATABASE_URL in .env.local (see .env.example).
 import { sql } from "../lib/db";
 import { syncCrete } from "../lib/creteSync";
 import { rollupRecentWeeks } from "../lib/channelAggregation";
+import { log } from "../lib/log";
 
-console.log("Syncing Facebook, Instagram and TikTok from Crete...");
-const summary = await syncCrete();
+const dryRun = process.argv.includes("--dry-run");
+const verbose = process.argv.includes("--verbose");
 
-for (const [platform, p] of Object.entries(summary.platforms)) {
-  console.log(`\n== ${platform} ==`);
-  console.log(`${p.postsRead} posts from ${p.accountsSeen} accounts; ${p.accountsMatched} matched to an MP.`);
-  if (p.fallbackMatches.length) {
-    console.log("Matched by name (no stored link) - worth a glance:");
-    for (const m of p.fallbackMatches) console.log(`  ${m.account} -> ${m.mp}`);
+try {
+  log.info("crete-sync", dryRun ? "DRY RUN: reading from Crete, nothing will be written." : "Starting. Reading Facebook, Instagram and TikTok from Crete.");
+  const summary = await syncCrete({ dryRun });
+
+  for (const [platform, p] of Object.entries(summary.platforms)) {
+    log.info("crete-sync", `${platform}: ${p.postsRead} posts from ${p.accountsSeen} accounts, ${p.accountsMatched} matched to an MP.`);
+    for (const m of p.fallbackMatches) log.info("crete-sync", `${platform}: matched by name, worth a glance: ${m.account} -> ${m.mp}`);
+    for (const u of p.unmatchedAccounts) log.warn("crete-sync", `${platform}: could not match ${u.account} (${u.reason}).`);
+    log.info("crete-sync", `${platform}: ${p.mpsWithNoData.length} MPs have no data in Crete yet.`);
+    if (verbose) for (const m of p.mpsWithNoData) log.info("crete-sync", `${platform}:   no data: ${m}`);
   }
-  if (p.unmatchedAccounts.length) {
-    console.log("Accounts we couldn't match to an MP:");
-    for (const u of p.unmatchedAccounts) console.log(`  ${u.account} (${u.reason})`);
+
+  if (dryRun) {
+    log.info("crete-sync", `DRY RUN finished. Would write ${summary.dailyRowsUpserted} Facebook/Instagram daily rows and ${summary.tiktokVideosUpserted} TikTok videos. Run "npm run sync:crete" to do it for real.`);
+  } else {
+    log.info("crete-sync", `Wrote ${summary.dailyRowsUpserted} Facebook/Instagram daily rows and ${summary.tiktokVideosUpserted} TikTok videos.`);
+    await rollupRecentWeeks(4);
+    log.info("crete-sync", "Weekly roll-ups updated. Success.");
   }
-  console.log(`MPs with no ${platform} data in Crete yet: ${p.mpsWithNoData.length}`);
-  if (process.argv.includes("--verbose")) for (const m of p.mpsWithNoData) console.log(`  ${m}`);
+} catch (error) {
+  log.error("crete-sync", `FAILED. ${error instanceof Error ? error.message : String(error)}`);
+  log.error("crete-sync", "Nothing is half-written: every write is a safe re-runnable upsert, so fix the cause above and run it again.");
+  process.exitCode = 1;
+} finally {
+  await sql.end();
 }
-console.log(`\nUpserted ${summary.dailyRowsUpserted} Facebook/Instagram daily rows and ${summary.tiktokVideosUpserted} TikTok videos.`);
-
-// Roll the last four weeks up into the weekly tables the platform cards read.
-await rollupRecentWeeks(4);
-console.log("Weekly roll-ups updated.");
-await sql.end();

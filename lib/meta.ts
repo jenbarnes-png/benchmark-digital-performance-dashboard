@@ -1,3 +1,4 @@
+import { numberEnv } from "./env";
 // Thin client for Meta's Graph API / Ad Library API. Only reads public
 // data (Page IDs, political ads) — never touches anything requiring the
 // Page owner's permission.
@@ -75,8 +76,14 @@ async function searchAdsArchive(
 ): Promise<ArchivedAd[]> {
   const ads: ArchivedAd[] = [];
   let after: string | undefined;
+  // Safety limit on pages fetched per search (250 ads a page). Raise META_MAX_PAGES in settings if a real search needs more.
+  const maxPages = numberEnv("META_MAX_PAGES", 60);
+  let pages = 0;
 
   do {
+    if (++pages > maxPages) {
+      throw new Error(`Stopped: a single Meta Ad Library search needed more than ${maxPages} pages. This is a safety limit. If that many is expected, raise META_MAX_PAGES in .env.local.`);
+    }
     const params: Record<string, string> = {
       ...searchParams,
       ad_type: "POLITICAL_AND_ISSUE_ADS",

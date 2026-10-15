@@ -65,7 +65,8 @@ const TIKTOK_LOOKBACK_DAYS = 90;
  * (unknown), not written as zero, because the store only started collecting
  * recently and a backfill may still fill them in on a later run.
  */
-export async function syncCrete(): Promise<CreteSyncSummary> {
+export async function syncCrete(options: { dryRun?: boolean } = {}): Promise<CreteSyncSummary> {
+  const dryRun = options.dryRun ?? false; // true = read and match everything, but write nothing
   const reps = await sql<Rep[]>`
     select r.id, r.name, c.name as constituency
     from representatives r join constituencies c on c.id = r.constituency_id
@@ -185,6 +186,10 @@ export async function syncCrete(): Promise<CreteSyncSummary> {
 
     // Make sure each matched account has a social_accounts row with a fresh follower count.
     for (const acct of resolved) {
+      if (dryRun) {
+        acct.accountRowId = acct.accountRowId ?? "dry-run";
+        continue;
+      }
       const sample = acct.posts[0];
       const followers = acct.posts.map((p) => p.followers).find((f) => f !== null) ?? null;
       const username = acct.key.startsWith("id:") ? null : acct.key;
@@ -252,7 +257,7 @@ export async function syncCrete(): Promise<CreteSyncSummary> {
       }
       const rows = Array.from(videos.values());
       const cols = ["account_id", "video_url", "external_video_id", "posted_at", "view_count", "like_count", "comment_count", "share_count", "source", "last_updated_at"] as const;
-      for (let i = 0; i < rows.length; i += 500) {
+      for (let i = 0; i < (dryRun ? 0 : rows.length); i += 500) {
         const batch = rows.slice(i, i + 500);
         await sql`
           insert into tiktok_videos ${sql(batch, ...cols)}
@@ -307,7 +312,7 @@ export async function syncCrete(): Promise<CreteSyncSummary> {
   }
 
   const cols = ["representative_id", "platform", "date", "post_count", "reel_count", "video_count", "reach", "top_post_url", "top_post_text", "top_post_reach", "top_post_engagement", "source"] as const;
-  for (let i = 0; i < dailyRows.length; i += 1000) {
+  for (let i = 0; i < (dryRun ? 0 : dailyRows.length); i += 1000) {
     const batch = dailyRows.slice(i, i + 1000);
     await sql`
       insert into social_activity_daily ${sql(batch, ...cols)}

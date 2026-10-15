@@ -1,3 +1,5 @@
+import { numberEnv, requireEnv } from "./env";
+
 // Read-only client for the Crete post store (Elasticsearch). Replaces the
 // Brandwatch/Exolyt-fed Google Sheets as the only source of Facebook,
 // Instagram and TikTok activity. ES_URL / ES_API_KEY come from the
@@ -71,9 +73,9 @@ const SOURCE_FIELDS = [
 ];
 
 function config() {
-  const url = process.env.ES_URL;
-  const key = process.env.ES_API_KEY;
-  if (!url || !key) throw new Error("ES_URL / ES_API_KEY are not set");
+  // WARNING: ES_API_KEY is a secret. Never log it or put it in an error message.
+  const url = requireEnv("ES_URL", "the web address of the Crete data store", "Ask Sapio for the cluster URL (it looks like https://xxxx.europe-west3.gcp.cloud.es.io).");
+  const key = requireEnv("ES_API_KEY", "the password for reading the Crete data store", "Ask Sapio for a read-only API key for the crete-* indices.");
   return { url: url.replace(/\/$/, ""), key };
 }
 
@@ -145,10 +147,18 @@ export async function fetchCretePosts(platform: CretePlatform, since: Date): Pro
     query: { range: { timestamp: { gte: since.toISOString() } } },
   });
 
+  // Safety limit so an unexpectedly huge store can't make a run endless. Raise CRETE_MAX_POSTS in settings if it is hit.
+  const maxPosts = numberEnv("CRETE_MAX_POSTS", 50_000);
+
   while (page.hits.hits.length > 0) {
     for (const hit of page.hits.hits) {
       const post = toPost(platform, hit._source as RawDoc);
       if (post) posts.push(post);
+    }
+    if (posts.length > maxPosts) {
+      throw new Error(
+        `Stopped: read more than ${maxPosts} ${platform} posts from Crete in one run. This is a safety limit, not a fault. If that many is expected, raise CRETE_MAX_POSTS in .env.local.`
+      );
     }
     if (!page._scroll_id) break;
     page = await es(`/_search/scroll`, { scroll: "2m", scroll_id: page._scroll_id });
