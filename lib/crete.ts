@@ -182,3 +182,30 @@ export function accountKey(platform: CretePlatform, rawUrl: string | null | unde
   }
   return segments[0].toLowerCase();
 }
+
+/** Per-index headline numbers, for monitoring: how much is stored and how recently it was collected. */
+export async function creteHealth(): Promise<
+  Record<CretePlatform, { posts: number; accounts: number; earliestPost: string | null; latestPost: string | null; lastScraped: string | null }>
+> {
+  const out = {} as Awaited<ReturnType<typeof creteHealth>>;
+  for (const platform of ["facebook", "instagram", "tiktok"] as CretePlatform[]) {
+    const r = await es(`/${CRETE_INDEX[platform]}/_search`, {
+      size: 0,
+      track_total_hits: true,
+      aggs: {
+        first: { min: { field: "timestamp" } },
+        last: { max: { field: "timestamp" } },
+        scraped: { max: { field: "scraped_at" } },
+        accounts: { cardinality: { field: "user.url.keyword" } },
+      },
+    });
+    out[platform] = {
+      posts: r.hits.total.value,
+      accounts: r.aggregations.accounts.value,
+      earliestPost: r.aggregations.first.value_as_string ?? null,
+      latestPost: r.aggregations.last.value_as_string ?? null,
+      lastScraped: r.aggregations.scraped.value_as_string ?? null,
+    };
+  }
+  return out;
+}
