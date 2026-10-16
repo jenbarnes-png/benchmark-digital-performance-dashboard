@@ -1,0 +1,35 @@
+name: Remind approvers about waiting reports
+
+# Emails the approvers once a day, only when manual reports (Facebook Group posts,
+# subscriber counts, amplifier groups) are waiting for approval. Sends nothing when
+# nothing is waiting. Skipped until the email settings are added as GitHub secrets
+# (GMAIL_SMTP_USER, GMAIL_SMTP_APP_PASSWORD, APPROVAL_EMAILS).
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GMAIL_SMTP_USER: ${{ secrets.GMAIL_SMTP_USER }}
+      GMAIL_SMTP_APP_PASSWORD: ${{ secrets.GMAIL_SMTP_APP_PASSWORD }}
+      APPROVAL_EMAILS: ${{ secrets.APPROVAL_EMAILS }}
+      APP_BASE_URL: https://dashboard.project-beacon.co.uk
+    steps:
+      - name: Skip until email is set up
+        if: env.GMAIL_SMTP_USER == ''
+        run: echo "::notice::Email sending isn't set up yet (no GMAIL_SMTP_USER secret), so no reminder was sent. See README."
+      - uses: actions/checkout@v4
+        if: env.GMAIL_SMTP_USER != ''
+      - uses: actions/setup-node@v4
+        if: env.GMAIL_SMTP_USER != ''
+        with:
+          node-version: 22
+      - run: npm ci
+        if: env.GMAIL_SMTP_USER != ''
+      - run: npx tsx scripts/notify_pending_approvals.mts
+        if: env.GMAIL_SMTP_USER != ''

@@ -27,7 +27,7 @@ function getTransport() {
   });
 }
 
-async function sendReviewEmail(params: { subject: string; body: string }): Promise<{ sent: boolean }> {
+export async function sendReviewEmail(params: { subject: string; body: string }): Promise<{ sent: boolean }> {
   const transport = getTransport();
   if (!transport || APPROVAL_RECIPIENTS.length === 0) {
     console.warn(

@@ -45,6 +45,9 @@ and like/comment counts are a snapshot from when Crete last collected the post.
 | Check Crete is still collecting and every MP is covered this week | `npm run check:crete` |
 | Check the subscriber-growth rule | `npm run test:growth` |
 | Check the amplifier-group points rule | `npm run test:amplifiers` |
+| See the "reports waiting for approval" email without sending it | `npm run notify:pending:dry` |
+| Send that reminder email for real | `npm run notify:pending` |
+| Check the reminder email wording | `npm run test:digest` |
 | Check the code compiles | `npm run typecheck` |
 
 **What to expect from a sync:** a few timestamped lines such as
@@ -57,6 +60,23 @@ Every write is a safe upsert, so running a sync twice never duplicates anything.
 A GitHub Actions job (`.github/workflows/sync-data.yml`) runs both syncs every 4 hours.
 To see it: GitHub, the repository, the **Actions** tab. Open a run to read its log.
 You can also start one by hand with **Run workflow**.
+
+## Approval emails
+
+Reports typed in by hand wait for an approver. Two emails help:
+
+- **Instant**: when someone submits a report, the approvers get an email with a review link.
+- **Daily reminder** (8am UTC, `.github/workflows/remind-approvals.yml`): a single email listing everything still
+  waiting, and **nothing is sent when nothing is waiting**.
+
+Both need an email account to send from. One-time setup:
+1. Use a fouroneone.co.uk Google account with 2-Step Verification on.
+2. Google Account, Security, 2-Step Verification, **App passwords**: create one for "Mail". Copy the 16 characters.
+3. Put `GMAIL_SMTP_USER`, `GMAIL_SMTP_APP_PASSWORD` and `APPROVAL_EMAILS` in `.env.local`, and add the same three in
+   Vercel (environment variables) and GitHub (Settings, Secrets, Actions). Never paste the app password into chat.
+4. Test: `npm run notify:pending:dry` shows what would be sent; `npm run notify:pending` sends it.
+
+Until step 3 is done no emails are sent (the daily job says so in its log and does nothing). Approvals still work from the Admin pages.
 
 ## Settings you can change without editing code
 

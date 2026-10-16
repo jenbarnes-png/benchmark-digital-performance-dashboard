@@ -14,7 +14,10 @@
     "check:crete": "tsx --env-file=.env.local scripts/check_crete_coverage.mts",
     "test:growth": "tsx scripts/test_subscriber_growth.mts",
     "typecheck": "tsc --noEmit",
-    "test:amplifiers": "tsx scripts/test_amplifier_scoring.mts"
+    "test:amplifiers": "tsx scripts/test_amplifier_scoring.mts",
+    "notify:pending": "tsx --env-file=.env.local scripts/notify_pending_approvals.mts",
+    "notify:pending:dry": "tsx --env-file=.env.local scripts/notify_pending_approvals.mts --dry-run",
+    "test:digest": "tsx scripts/test_pending_digest.mts"
   },
   "dependencies": {
     "csv-parse": "^7.0.2",
