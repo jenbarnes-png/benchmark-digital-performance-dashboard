@@ -119,12 +119,36 @@ export default async function ConstituencyDetailPage({
     "Ongoing",
     "Target not yet defined"
   );
-  const amplifiersItem = untrackedItem(
-    "amplifiers",
-    "Small group of amplifiers",
-    "Ongoing",
-    "Target not yet defined"
-  );
+  // Amplifier group: reported by hand with a screenshot and approved (see /scoring).
+  const amplifierInfo = current.amplifiers;
+  const amplifiersItem: DreamWeekItem = !amplifierInfo.hasData
+    ? untrackedItem("amplifiers", "Small group of amplifiers", "A group chat of at least 3 people", "No approved report yet")
+    : amplifierInfo.established && amplifierInfo.activeThisWeek
+      ? {
+          key: "amplifiers",
+          title: "Small group of amplifiers",
+          target: "A group chat of at least 3 people",
+          tier: "green",
+          points: 2,
+          detail: `Established (${amplifierInfo.memberCount} members) and active this week`,
+        }
+      : amplifierInfo.established
+        ? {
+            key: "amplifiers",
+            title: "Small group of amplifiers",
+            target: "A group chat of at least 3 people",
+            tier: "amber",
+            points: 1,
+            detail: `Established (${amplifierInfo.memberCount} members), no posts reported this week`,
+          }
+        : {
+            key: "amplifiers",
+            title: "Small group of amplifiers",
+            target: "A group chat of at least 3 people",
+            tier: "red",
+            points: 0,
+            detail: `Group has ${amplifierInfo.memberCount ?? 0} members, needs at least 3`,
+          };
 
   const newsletterItem: DreamWeekItem = channelActivity.hasNewsletterData
     ? {

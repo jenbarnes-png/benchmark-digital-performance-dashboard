@@ -24,6 +24,12 @@ const sections = [
     available: true,
   },
   {
+    href: "/admin/amplifiers",
+    label: "Amplifier groups",
+    description: "Weekly report on each MP's amplifier group chat, with a screenshot. 2 points for an established group, 1 per active week. Needs approval.",
+    available: true,
+  },
+  {
     href: "/admin/newsletters",
     label: "Newsletters sent",
     description: "Record by hand when an MP has sent a newsletter. Stop-gap while automatic detection is rebuilt.",
@@ -42,7 +48,7 @@ export default async function AdminPage() {
   const clientView = await isClientUser();
   const visible = clientView
     ? sections
-        .filter((x) => x.href === "/admin/facebook-group" || x.href === "/admin/subscribers")
+        .filter((x) => x.href === "/admin/facebook-group" || x.href === "/admin/subscribers" || x.href === "/admin/amplifiers")
         .map((x) => ({ ...x, href: `${x.href}/new` }))
     : sections;
 

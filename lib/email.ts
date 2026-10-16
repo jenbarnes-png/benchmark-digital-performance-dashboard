@@ -80,3 +80,22 @@ export function sendSubscriberApprovalEmail(params: {
     ].join("\n"),
   });
 }
+
+export function sendAmplifierApprovalEmail(params: {
+  constituencyName: string;
+  periodLabel: string;
+  memberCount: number;
+  postCount: number;
+  reviewUrl: string;
+}): Promise<{ sent: boolean }> {
+  return sendReviewEmail({
+    subject: `Approve: ${params.constituencyName} amplifier group, ${params.memberCount} members (${params.periodLabel})`,
+    body: [
+      `${params.constituencyName} reported an amplifier group with ${params.memberCount} members and ${params.postCount} posts for ${params.periodLabel}.`,
+      "",
+      `Check the screenshot, then approve or reject: ${params.reviewUrl}`,
+      "",
+      "This won't count toward the tracker until approved.",
+    ].join("\n"),
+  });
+}

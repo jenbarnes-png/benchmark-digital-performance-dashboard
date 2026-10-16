@@ -16,7 +16,7 @@ import { listConstituencies } from "@/lib/db";
 
 export type FormState = { error: string } | null;
 
-const MAX_SCREENSHOT_BYTES = 5 * 1024 * 1024;
+const MAX_SCREENSHOT_BYTES = 4 * 1024 * 1024; // Vercel caps a request at 4.5MB
 
 function addDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
@@ -58,7 +58,7 @@ async function parseInput(formData: FormData): Promise<FacebookGroupInput | { er
 
   const screenshot = await parseScreenshot(formData);
   if (screenshot === "invalid") {
-    return { error: "Screenshot must be an image file under 5MB." };
+    return { error: "Screenshot must be an image file under 4MB." };
   }
 
   return { constituencyId, periodStart, periodEnd: addDays(periodStart, 6), postCount, postUrl, screenshot };

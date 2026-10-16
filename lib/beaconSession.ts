@@ -17,9 +17,9 @@ export function canUseAdmin(role: BeaconUser["role"]): boolean {
 }
 
 // The only admin pages open to client accounts: the hub (which shows them just
-// the two forms) and the two data-submission forms. Everything else under
+// the two forms) and the data-submission forms. Everything else under
 // /admin (review queues, approvals, edits, constituencies, screenshots) stays staff-only.
-const CLIENT_ADMIN_PATHS = ["/admin", "/admin/facebook-group/new", "/admin/subscribers/new"];
+const CLIENT_ADMIN_PATHS = ["/admin", "/admin/facebook-group/new", "/admin/subscribers/new", "/admin/amplifiers/new"];
 
 export function adminPathAllowedForClient(pathname: string): boolean {
   return CLIENT_ADMIN_PATHS.includes(pathname.replace(/\/+$/, "") || "/");

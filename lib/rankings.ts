@@ -13,6 +13,7 @@ import { scoreForNewsletter, NEWSLETTER_MAX_POINTS } from "./newsletterScoring";
 import { scoreForGroup, GROUP_MAX_POINTS } from "./groupScoring";
 import { scoreForSubscriberGrowth, SUBSCRIBER_MAX_POINTS, SUBSCRIBER_GROWTH_TARGET } from "./subscriberScoring";
 import { TRACKING_START } from "./trackingStart";
+import { amplifierStatusForWeek, scoreForAmplifiers, type AmplifierReport } from "./amplifierScoring";
 import { computeSubscriberGrowth, type DeclaredCount } from "./subscriberGrowth";
 
 // Used only when literally nothing has been tracked yet (periods.length
@@ -95,6 +96,7 @@ export async function listPeriods(): Promise<Period[]> {
         union
         select period_start, period_end from ad_spend
         union select period_start, period_end from facebook_group_activity
+        union select period_start, period_end from amplifier_group_reports
         union select period_start, period_end from newsletter_sends
       ) p
       where period_start >= ${TRACKING_START}
@@ -174,6 +176,7 @@ export async function getLastUpdated(): Promise<string | null> {
       select max(created_at) as t from organic_posts
       union all select max(created_at) from ad_spend
       union all select max(created_at) from facebook_group_activity
+      union all select max(created_at) from amplifier_group_reports
       union all select max(created_at) from newsletter_sends
       union all select max(created_at) from tiktok_videos
       union all select max(created_at) from social_activity_daily
@@ -196,6 +199,17 @@ export type AdPlatformBreakdown = {
   hasData: boolean;
 };
 
+/** Amplifier group status for a week, from approved manual reports — see lib/amplifierScoring.ts. */
+export type AmplifierMetric = {
+  points: number;
+  hasData: boolean;
+  established: boolean;
+  activeThisWeek: boolean;
+  memberCount: number | null;
+};
+
+const NO_AMPLIFIERS: AmplifierMetric = { points: 0, hasData: false, established: false, activeThisWeek: false, memberCount: null };
+
 export type PeriodMetrics = {
   period: string;
   periodEnd: string;
@@ -211,6 +225,7 @@ export type PeriodMetrics = {
   };
   organic: { total: number; hasData: boolean; byPlatform: PlatformBreakdown[] };
   group: { postCount: number; hasData: boolean };
+  amplifiers: AmplifierMetric;
   newsletter: { sendCount: number; hasData: boolean };
   tiktok: {
     points: number;
@@ -279,6 +294,7 @@ async function buildMetricsIndex() {
     channelActivityRows,
     newsletterEventRows,
     subscriberCountRows,
+    amplifierRows,
   ] = await Promise.all([
     sql<OrganicRow[]>`select constituency_id, platform_id, period_start::text, post_count, has_data from organic_posts`,
     sql<AdSpendRow[]>`select constituency_id, platform_id, period_start::text, amount_spent, target_amount, has_data from ad_spend`,
@@ -323,6 +339,10 @@ async function buildMetricsIndex() {
     `,
     sql<{ constituency_id: string; month_start: string; subscriber_count: number | null; has_data: boolean; created_at: string }[]>`
       select constituency_id, month_start::text, subscriber_count, has_data, created_at::text from subscriber_counts
+    `,
+    sql<{ constituency_id: string; period_start: string; member_count: number | null; post_count: number | null }[]>`
+      select constituency_id, period_start::text, member_count, post_count
+      from amplifier_group_reports where status = 'approved' and has_data
     `,
   ]);
 
@@ -492,6 +512,14 @@ async function buildMetricsIndex() {
     subscriberCountsByConstituency.get(row.constituency_id)!.push({ month: row.month_start, count: row.subscriber_count });
   }
 
+  const amplifierReportsByConstituency = new Map<string, AmplifierReport[]>();
+  for (const row of amplifierRows) {
+    if (!amplifierReportsByConstituency.has(row.constituency_id)) amplifierReportsByConstituency.set(row.constituency_id, []);
+    amplifierReportsByConstituency
+      .get(row.constituency_id)!
+      .push({ periodStart: row.period_start, memberCount: row.member_count, postCount: row.post_count });
+  }
+
   /** Growth for the month the reference date falls in — see lib/subscriberGrowth.ts. */
   function subscriberGrowthAsOf(constituencyId: string, referenceDate: Date) {
     return computeSubscriberGrowth(subscriberCountsByConstituency.get(constituencyId), referenceDate);
@@ -573,6 +601,7 @@ async function buildMetricsIndex() {
     adSpend: PeriodMetrics["adSpend"];
     organic: PeriodMetrics["organic"];
     group: PeriodMetrics["group"];
+    amplifiers: AmplifierMetric;
     newsletter: PeriodMetrics["newsletter"];
     tiktok: {
       hasAccount: boolean;
@@ -666,6 +695,7 @@ async function buildMetricsIndex() {
           recencyStatus,
         },
         organic: { total: organicTotal, hasData: organicHasData, byPlatform: organicByPlatform },
+        amplifiers: amplifierStatusForWeek(amplifierReportsByConstituency.get(constituencyId), start),
         group: {
           postCount: groupRow?.has_data ? (groupRow.value ?? 0) : 0,
           hasData: groupRow?.has_data ?? false,
@@ -762,6 +792,7 @@ async function buildMetricsIndex() {
         key: "groupPoints",
         ...scoreForGroup({ hasAccount: point.group.hasData, postCount: point.group.postCount }),
       },
+      { key: "amplifiers", ...scoreForAmplifiers({ hasData: point.amplifiers.hasData, points: point.amplifiers.points }) },
       {
         key: "subscriberGrowth",
         ...scoreForSubscriberGrowth({
@@ -779,6 +810,7 @@ async function buildMetricsIndex() {
       adSpend: point.adSpend,
       organic: point.organic,
       group: point.group,
+      amplifiers: point.amplifiers,
       newsletter: point.newsletter,
       tiktok: {
         points: point.tiktok.points,
@@ -835,6 +867,8 @@ export type RankingRow = {
   newsletterActivity: { hasData: boolean; sentInLast30Days: boolean; sentThisCalendarMonth: boolean };
   /** Manually-reported Facebook group posts this week — see facebook_group_activity. */
   group: { hasData: boolean; postCount: number };
+  /** Amplifier group points this week (0-3) — see lib/amplifierScoring.ts. */
+  amplifiers: AmplifierMetric;
   /** hasData here means "has two consecutive approved months to compare" — see subscriberGrowthAsOf. */
   subscriberGrowth: {
     hasData: boolean;
@@ -893,6 +927,7 @@ export async function getRankings(filters: {
         channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
         newsletterActivity: { hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
         group: { hasData: false, postCount: 0 },
+        amplifiers: NO_AMPLIFIERS,
         subscriberGrowth: { hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
       }));
     return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
@@ -941,6 +976,7 @@ export async function getRankings(filters: {
           sentThisCalendarMonth: false,
         },
         group: currentMetrics?.group ?? { hasData: false, postCount: 0 },
+        amplifiers: currentMetrics?.amplifiers ?? NO_AMPLIFIERS,
         subscriberGrowth: currentMetrics?.subscriberGrowth ?? { hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
       };
     });
@@ -954,6 +990,7 @@ const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
   adSpend: { spent: 0, target: 0, hasData: false, byPlatform: [], recencyStatus: "no_advertiser" },
   organic: { total: 0, hasData: false, byPlatform: [] },
   group: { postCount: 0, hasData: false },
+  amplifiers: NO_AMPLIFIERS,
   newsletter: { sendCount: 0, hasData: false },
   tiktok: {
     points: 0,
@@ -1061,6 +1098,7 @@ export async function getConstituencyDetail(
       select max(created_at) as t from organic_posts where constituency_id = ${constituencyId}
       union all select max(created_at) from ad_spend where constituency_id = ${constituencyId}
       union all select max(created_at) from facebook_group_activity where constituency_id = ${constituencyId}
+      union all select max(created_at) from amplifier_group_reports where constituency_id = ${constituencyId}
       union all select max(created_at) from newsletter_sends where constituency_id = ${constituencyId}
       union all
         select max(tv.created_at) from tiktok_videos tv

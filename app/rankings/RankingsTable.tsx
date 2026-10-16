@@ -21,6 +21,7 @@ type SortKey =
   | "newsletterSent"
   | "newsletterMonth"
   | "groupPosts"
+  | "amplifiers"
   | "listSize"
   | "subscriberGrowth"
   | "change";
@@ -41,6 +42,7 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   newsletterSent: "desc",
   newsletterMonth: "desc",
   groupPosts: "desc",
+  amplifiers: "desc",
   listSize: "desc",
   subscriberGrowth: "desc",
   change: "desc",
@@ -128,6 +130,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       newsletterSent: r.newsletterActivity.hasData ? (r.newsletterActivity.sentInLast30Days ? 1 : 0) : -1,
       newsletterMonth: r.newsletterActivity.hasData ? (r.newsletterActivity.sentThisCalendarMonth ? 1 : 0) : -1,
       groupPosts: r.group.hasData ? r.group.postCount : -1,
+      amplifiers: r.amplifiers.hasData ? r.amplifiers.points : -1,
       listSize: r.subscriberGrowth.listSize ?? -1,
       subscriberGrowth: r.subscriberGrowth.hasData ? (r.subscriberGrowth.grewByAtLeastTarget ? 1 : 0) : -1,
       change: r.change.delta ?? Number.NEGATIVE_INFINITY,
@@ -162,6 +165,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["Newsletter (last 30 days)", "newsletterSent"],
                 ["Newsletter sent this month", "newsletterMonth"],
                 ["Facebook group posts (manual)", "groupPosts"],
+                ["Amplifier group (points)", "amplifiers"],
                 ["Email list size (declared)", "listSize"],
                 ["Subscribers +20 this month", "subscriberGrowth"],
                 ["Change", "change"],
@@ -253,6 +257,19 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 {r.group.hasData ? formatCount(r.group.postCount) : "—"}
               </td>
               <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
+                {r.amplifiers.hasData ? (
+                  <>
+                    {r.amplifiers.points}
+                    <span className="block text-xs text-black/50 dark:text-white/50">
+                      {r.amplifiers.established ? `${r.amplifiers.memberCount} members` : "not established"}
+                      {r.amplifiers.activeThisWeek ? " · active" : ""}
+                    </span>
+                  </>
+                ) : (
+                  "—"
+                )}
+              </td>
+              <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">
                 {r.subscriberGrowth.listSize === null ? (
                   "—"
                 ) : (
@@ -276,7 +293,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={17} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={18} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>

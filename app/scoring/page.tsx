@@ -3,10 +3,11 @@ import { TIKTOK_MAX_POINTS } from "@/lib/tiktokScoring";
 import { CHANNEL_MAX_POINTS } from "@/lib/channelScoring";
 import { NEWSLETTER_MAX_POINTS } from "@/lib/newsletterScoring";
 import { GROUP_MAX_POINTS } from "@/lib/groupScoring";
+import { AMPLIFIER_MAX_POINTS, AMPLIFIER_ESTABLISHED_POINTS, AMPLIFIER_ACTIVE_POINTS, AMPLIFIER_MIN_MEMBERS } from "@/lib/amplifierScoring";
 import { SUBSCRIBER_MAX_POINTS, SUBSCRIBER_GROWTH_TARGET } from "@/lib/subscriberScoring";
 
 const TOTAL_POINTS =
-  AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS + CHANNEL_MAX_POINTS + NEWSLETTER_MAX_POINTS + GROUP_MAX_POINTS + SUBSCRIBER_MAX_POINTS;
+  AD_RECENCY_POINTS.active + TIKTOK_MAX_POINTS + CHANNEL_MAX_POINTS + NEWSLETTER_MAX_POINTS + GROUP_MAX_POINTS + SUBSCRIBER_MAX_POINTS + AMPLIFIER_MAX_POINTS;
 
 function SourceTag({ kind }: { kind: "automatic" | "manual" }) {
   return kind === "automatic" ? (
@@ -64,6 +65,22 @@ const ROWS: { metric: string; points: number; source: "automatic" | "manual"; de
           Facebook Group manual reporting
         </a>
         .
+      </>
+    ),
+  },
+  {
+    metric: "Amplifier group",
+    points: AMPLIFIER_MAX_POINTS,
+    source: "manual",
+    detail: (
+      <>
+        {AMPLIFIER_ESTABLISHED_POINTS} points for an established group chat of at least {AMPLIFIER_MIN_MEMBERS} members, plus{" "}
+        {AMPLIFIER_ACTIVE_POINTS} point each week it&apos;s active (posts going in). Report it weekly with a screenshot in{" "}
+        <a href="/admin/amplifiers" className="underline hover:text-black dark:hover:text-white">
+          Amplifier groups
+        </a>
+        . It&apos;s approved before it counts, and an established group keeps its {AMPLIFIER_ESTABLISHED_POINTS} points until a
+        report shows it has fallen below {AMPLIFIER_MIN_MEMBERS}.
       </>
     ),
   },

@@ -2,8 +2,8 @@
 
 A website that shows how Labour MPs are doing online: whether they are posting on
 Facebook, Instagram and TikTok, whether they are running ads, and a few things
-reported by hand (Facebook Group posts, email list sizes, newsletters). It turns
-those into a weekly score out of 14 and ranks MPs against each other.
+reported by hand (Facebook Group posts, amplifier groups, email list sizes, newsletters). It turns
+those into a weekly score out of 17 and ranks MPs against each other.
 
 It is part of Project Beacon and sits behind the Beacon sign-in.
 
@@ -19,7 +19,7 @@ It is part of Project Beacon and sits behind the Beacon sign-in.
 |---|---|---|
 | Facebook, Instagram, TikTok posts and engagement | The **Crete** store (Elasticsearch), run by Sapio | Collected by Sapio about daily; we copy it every 4 hours |
 | Paid ads | Meta's public **Ad Library** (needs a token that expires about every 60 days) | Every 4 hours |
-| Facebook Group posts, email list sizes, newsletters | Typed in by hand on the Admin pages | When people log them |
+| Facebook Group posts, amplifier groups, email list sizes, newsletters | Typed in by hand on the Admin pages | When people log them |
 
 There is no live feed. Posts reach the dashboard a few hours after they are published,
 and like/comment counts are a snapshot from when Crete last collected the post.
@@ -44,6 +44,7 @@ and like/comment counts are a snapshot from when Crete last collected the post.
 | Pull the latest ads from Meta (for real) | `npm run sync:meta` |
 | Check Crete is still collecting and every MP is covered this week | `npm run check:crete` |
 | Check the subscriber-growth rule | `npm run test:growth` |
+| Check the amplifier-group points rule | `npm run test:amplifiers` |
 | Check the code compiles | `npm run typecheck` |
 
 **What to expect from a sync:** a few timestamped lines such as
@@ -72,7 +73,7 @@ All are set in `.env.local` (your computer) or in Vercel's environment variables
 
 - Any signed-in Beacon account can view the dashboard.
 - **Admin / Data Entry** is for Beacon *staff* and *admin* accounts.
-- *Client* accounts (MP teams) can only open two forms: Facebook Group posts and subscriber counts.
+- *Client* accounts (MP teams) can only open three forms: Facebook Group posts, amplifier groups and subscriber counts.
 - Hide an MP from every public view (without deleting anything): Admin, Constituencies, Edit, tick "Hide from the dashboard".
 
 ## Reported by hand
@@ -80,6 +81,9 @@ All are set in `.env.local` (your computer) or in Vercel's environment variables
 - **Facebook Group posts** and **subscriber counts**: logged on the Admin pages, then approved by an approver.
   For subscribers, log the total list size whenever it changes. The first count is the starting point and the
   point is earned once the list is 20 or more above it.
+- **Amplifier groups**: the MP's team reports weekly (members, posts that week, and a screenshot of the group). An
+  approver checks the screenshot. 2 points for an established group of 3 or more members (kept until a report shows
+  it has dropped below 3) plus 1 point each week it is active. Screenshots are private: only staff can see them.
 - **Newsletters**: Admin, "Newsletters sent". A stop-gap until automatic detection is rebuilt.
 
 ## Troubleshooting
