@@ -24,3 +24,80 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * Print / Save as PDF for the Rankings page.
+ *
+ * Browsers' own "Save as PDF" is used rather than generating PDFs server-side:
+ * it needs no dependency, runs instantly, and always reflects exactly the
+ * filters the user is looking at.
+ *
+ * The on-screen table carries ~18 columns, which is unreadable on A4, so the
+ * interactive table is hidden for print and a condensed print-only table is
+ * shown in its place (see app/rankings/RankingsPrint.tsx).
+ */
+@media print {
+  /* Chrome omits backgrounds by default; without this the header row and the
+     alternating rows disappear and the table loses its structure. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Dark mode would otherwise print white text on white paper. */
+  :root {
+    --background: #ffffff;
+    --foreground: #171717;
+  }
+
+  body {
+    background: #ffffff;
+    color: #171717;
+  }
+
+  /* Chrome's print preview respects the OS dark-mode variables otherwise. */
+  html {
+    color-scheme: light;
+  }
+
+  .print\:hidden,
+  header,
+  nav {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* Let the content use the full sheet rather than the on-screen centred column. */
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* Repeat the header on every page of a long table. */
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  img {
+    break-inside: avoid;
+  }
+
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm;
+  }
+}
+
+/* Only ever visible on paper. */
+.print-only {
+  display: none;
+}

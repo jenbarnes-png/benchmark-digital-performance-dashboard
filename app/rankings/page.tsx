@@ -3,6 +3,8 @@ import { getRankings } from "@/lib/rankings";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import RankingsFilters from "./RankingsFilters";
 import RankingsTable from "./RankingsTable";
+import RankingsPrint from "./RankingsPrint";
+import PrintButton from "./PrintButton";
 
 export default async function RankingsPage({
   searchParams,
@@ -16,7 +18,7 @@ export default async function RankingsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="print:hidden flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Rankings</h1>
           <p className="mt-2 max-w-2xl text-black/70 dark:text-white/70">
@@ -37,19 +39,33 @@ export default async function RankingsPage({
             )}
           </p>
         </div>
-        <p className="whitespace-nowrap text-sm text-black/50 dark:text-white/50">
-          Data last updated: {formatDateTime(data.lastUpdated)}
-        </p>
+        <div className="flex items-center gap-4">
+          <p className="whitespace-nowrap text-sm text-black/50 dark:text-white/50">
+            Data last updated: {formatDateTime(data.lastUpdated)}
+          </p>
+          <PrintButton />
+        </div>
       </div>
 
-      <RankingsFilters
-        regions={data.regions}
-        cohorts={data.cohorts}
-        periods={data.periods}
-        current={{ region, cohort, period: data.targetPeriod?.start }}
-      />
+      <div className="print:hidden">
+        <RankingsFilters
+          regions={data.regions}
+          cohorts={data.cohorts}
+          periods={data.periods}
+          current={{ region, cohort, period: data.targetPeriod?.start }}
+        />
+      </div>
 
-      <RankingsTable rows={data.rows} />
+      <div className="print:hidden">
+        <RankingsTable rows={data.rows} />
+      </div>
+
+      <RankingsPrint
+        rows={data.rows}
+        periodLabel={data.targetPeriod ? formatPeriodLabel(data.targetPeriod) : null}
+        generatedAt={formatDateTime(new Date().toISOString())}
+        filters={{ region, cohort }}
+      />
     </div>
   );
 }
