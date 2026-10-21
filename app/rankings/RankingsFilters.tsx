@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import type { Period } from "@/lib/rankings";
+import { ALL_TIME } from "@/lib/rankingsScope";
 import { formatPeriodLabel } from "@/lib/format";
 
 export default function RankingsFilters({
@@ -68,6 +69,7 @@ export default function RankingsFilters({
             onChange={(e) => update("period", e.target.value)}
             className="rounded-md border border-black/15 bg-transparent px-3 py-1.5 text-sm dark:border-white/20"
           >
+            <option value={ALL_TIME}>All time</option>
             {periods.map((p) => (
               <option key={p.start} value={p.start}>
                 {formatPeriodLabel(p)}

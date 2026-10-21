@@ -22,7 +22,19 @@ export default async function RankingsPage({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Rankings</h1>
           <p className="mt-2 max-w-2xl text-black/70 dark:text-white/70">
-            {data.targetPeriod ? (
+            {data.scope === "all-time" ? (
+              <>
+                Points accumulated across all {data.periodsCounted} tracked{" "}
+                {data.periodsCounted === 1 ? "week" : "weeks"}. Teams tracked for longer
+                have had more chances to score, so this rewards sustained activity
+                rather than current form — the weekly views show that. The activity
+                columns still describe the most recent week.{" "}
+                <Link href="/scoring" className="underline hover:text-black dark:hover:text-white">
+                  See how scoring works
+                </Link>
+                .
+              </>
+            ) : data.targetPeriod ? (
               <>
                 National leaderboard for {formatPeriodLabel(data.targetPeriod)}. Scores are a
                 provisional model —{" "}
@@ -62,7 +74,13 @@ export default async function RankingsPage({
 
       <RankingsPrint
         rows={data.rows}
-        periodLabel={data.targetPeriod ? formatPeriodLabel(data.targetPeriod) : null}
+        periodLabel={
+          data.scope === "all-time"
+            ? `all time — ${data.periodsCounted} tracked ${data.periodsCounted === 1 ? "week" : "weeks"}`
+            : data.targetPeriod
+              ? formatPeriodLabel(data.targetPeriod)
+              : null
+        }
         generatedAt={formatDateTime(new Date().toISOString())}
         filters={{ region, cohort }}
       />

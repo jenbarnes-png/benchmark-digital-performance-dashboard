@@ -13,6 +13,8 @@ import { scoreForNewsletter, NEWSLETTER_MAX_POINTS } from "./newsletterScoring";
 import { scoreForGroup, GROUP_MAX_POINTS } from "./groupScoring";
 import { scoreForSubscriberGrowth, SUBSCRIBER_MAX_POINTS, SUBSCRIBER_GROWTH_TARGET } from "./subscriberScoring";
 import { TRACKING_START } from "./trackingStart";
+import { ALL_TIME } from "./rankingsScope";
+export { ALL_TIME };
 import { amplifierStatusForWeek, scoreForAmplifiers, type AmplifierReport } from "./amplifierScoring";
 import { computeSubscriberGrowth, type DeclaredCount } from "./subscriberGrowth";
 
@@ -888,7 +890,63 @@ export type RankingsResult = {
   regions: string[];
   cohorts: string[];
   lastUpdated: string | null;
+  /**
+   * "all-time" ranks by points accumulated across every tracked week rather
+   * than by a single week's score. targetPeriod is null in that mode, which is
+   * why this is a separate flag — a null targetPeriod otherwise means "nothing
+   * has been tracked yet".
+   */
+  scope: "week" | "all-time";
+  /** How many weeks the all-time totals cover. */
+  periodsCounted: number;
 };
+
+
+
+/** One row per constituency: points scored and available across every period. */
+export type AllTimeTotal<C> = {
+  constituency: C;
+  /** null when the constituency has no scored week at all, so it ranks last. */
+  score: number | null;
+  possible: number;
+  weeksWithData: number;
+};
+
+/**
+ * Sum each constituency's weekly scores into an all-time total.
+ *
+ * Weeks with no score are skipped rather than counted as zero, so a team that
+ * joined late is not penalised in the "out of" figure — though it does mean
+ * totals are not directly comparable between teams tracked for different
+ * lengths of time. That is inherent to an all-time leaderboard, and the page
+ * says as much.
+ *
+ * Exported separately from getRankings so it can be tested without a database.
+ */
+export function allTimeTotals<C extends { id: string }>(
+  constituencies: C[],
+  periods: Period[],
+  index: Map<string, { overall: number | null; overallMaxPoints: number }>
+): AllTimeTotal<C>[] {
+  return constituencies.map((c) => {
+    let scored = 0;
+    let possible = 0;
+    let weeksWithData = 0;
+    for (const p of periods) {
+      const m = index.get(periodKey(c.id, p.start));
+      if (!m || m.overall === null) continue;
+      scored += m.overall;
+      possible += m.overallMaxPoints;
+      weeksWithData += 1;
+    }
+    return {
+      constituency: c,
+      score: weeksWithData === 0 ? null : scored,
+      possible,
+      weeksWithData,
+    };
+  });
+}
 
 export async function getRankings(filters: {
   region?: string;
@@ -930,7 +988,66 @@ export async function getRankings(filters: {
         amplifiers: NO_AMPLIFIERS,
         subscriberGrowth: { hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
       }));
-    return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
+    return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated, scope: "week", periodsCounted: 0 };
+  }
+
+  // All-time: rank by points accumulated across every tracked week. The
+  // activity columns still describe the most recent week, because a yes/no
+  // like "posted a reel" has no cumulative equivalent — the page says so.
+  if (filters.period === ALL_TIME) {
+    const latest = periods[0];
+    const ranked = rankByScore(allTimeTotals(constituencies, periods, index));
+
+    const allTimeRows: RankingRow[] = ranked
+      .filter((r) => !filters.region || r.constituency.region === filters.region)
+      .filter((r) => !filters.cohort || r.constituency.cohort === filters.cohort)
+      .map((r) => {
+        const latestMetrics = index.get(periodKey(r.constituency.id, latest.start));
+        return {
+          constituency: r.constituency,
+          rank: r.rank,
+          score: r.score,
+          scoreMaxPoints: r.possible,
+          previousScore: null,
+          // There is no "previous" all-time total to compare against.
+          change: { delta: null, direction: "unknown" as const },
+          adLive: latestMetrics?.adSpend.recencyStatus === "active",
+          tiktok: latestMetrics?.tiktok ?? {
+            hasData: false,
+            reach: 0,
+            postedInLast30Days: false,
+            postedInLast7Days: false,
+            isBestPostWinner: false,
+          },
+          channel: latestMetrics?.channel ?? { hasData: false, reelIn7Days: false, postedIn7Days: false },
+          newsletterActivity: latestMetrics?.newsletterActivity ?? {
+            hasData: false,
+            sentInLast30Days: false,
+            sentThisCalendarMonth: false,
+          },
+          group: latestMetrics?.group ?? { hasData: false, postCount: 0 },
+          amplifiers: latestMetrics?.amplifiers ?? NO_AMPLIFIERS,
+          subscriberGrowth: latestMetrics?.subscriberGrowth ?? {
+            hasData: false,
+            grewByAtLeastTarget: false,
+            listSize: null,
+            listSizeMonth: null,
+            listChange: null,
+          },
+        };
+      });
+
+    return {
+      rows: allTimeRows,
+      periods,
+      targetPeriod: null,
+      previousPeriod: null,
+      regions,
+      cohorts,
+      lastUpdated,
+      scope: "all-time",
+      periodsCounted: periods.length,
+    };
   }
 
   const targetPeriod = periods.find((p) => p.start === filters.period) ?? periods[0];
@@ -981,7 +1098,7 @@ export async function getRankings(filters: {
       };
     });
 
-  return { rows, periods, targetPeriod, previousPeriod, regions, cohorts, lastUpdated };
+  return { rows, periods, targetPeriod, previousPeriod, regions, cohorts, lastUpdated, scope: "week", periodsCounted: 1 };
 }
 
 const EMPTY_METRICS: Omit<PeriodMetrics, "period" | "periodEnd"> = {
