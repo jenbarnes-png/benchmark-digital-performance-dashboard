@@ -46,6 +46,7 @@ and like/comment counts are a snapshot from when Crete last collected the post.
 | Check the subscriber-growth rule | `npm run test:growth` |
 | Check the amplifier-group points rule | `npm run test:amplifiers` |
 | Check which posts count as Reels | `npm run test:reels` |
+| Check hand-logged newsletter dates count | `npm run test:newsletter` |
 | Renew the Meta token (try first) | `npm run meta:renew:dry` |
 | Renew the Meta token (for real) | `npm run meta:renew` |
 | See the "reports waiting for approval" email without sending it | `npm run notify:pending:dry` |

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "./db";
+import { sentOnToTimestamp } from "./newsletterDates";
 
 // Short-term stand-in while newsletter detection is being rebuilt: an admin
 // records that an MP sent a newsletter. It lands in newsletter_events, the same
@@ -47,7 +48,7 @@ export async function addNewsletterEntry(params: {
   if (!rep) return false;
   await sql`
     insert into newsletter_events (representative_id, received_at, subject, sender, external_message_id, source)
-    values (${rep.id}, ${`${params.sentOn}T12:00:00Z`}, ${params.subject}, 'Reported by hand', ${`manual-${randomUUID()}`}, 'manual')
+    values (${rep.id}, ${sentOnToTimestamp(params.sentOn)}, ${params.subject}, 'Reported by hand', ${`manual-${randomUUID()}`}, 'manual')
   `;
   return true;
 }
