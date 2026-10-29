@@ -47,6 +47,7 @@ and like/comment counts are a snapshot from when Crete last collected the post.
 | Check the amplifier-group points rule | `npm run test:amplifiers` |
 | Check which posts count as Reels | `npm run test:reels` |
 | Check hand-logged newsletter dates count | `npm run test:newsletter` |
+| Check the Rankings CSV export | `npm run test:csv` |
 | Renew the Meta token (try first) | `npm run meta:renew:dry` |
 | Renew the Meta token (for real) | `npm run meta:renew` |
 | See the "reports waiting for approval" email without sending it | `npm run notify:pending:dry` |
@@ -104,6 +105,14 @@ All are set in `.env.local` (your computer) or in Vercel's environment variables
 - `META_MAX_PAGES`: safety limit on Meta pages fetched per search (default 60).
 - `APPROVAL_EMAILS`: who is emailed when a manual report needs approving.
 - `BEACON_AUTH`: set to `on` online to require the Project Beacon sign-in.
+
+## Downloading the Rankings (CSV)
+
+On the Rankings page, open **Export to CSV (spreadsheet)**, choose the first and last week and a region (or all
+regions), then **Download CSV**. The file has one row per MP per week: rank, score, and each measure. A blank cell
+means there was no data, which is different from a 0. Hidden MPs are left out, as on the page. It opens in Excel or
+Google Sheets. The address behind the button is `/rankings/export?from=2026-10-05&to=2026-10-26&region=Wales`, which
+can be saved as a bookmark.
 
 ## Who can see what
 

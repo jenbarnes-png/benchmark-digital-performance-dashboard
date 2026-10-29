@@ -21,7 +21,8 @@
     "meta:renew": "tsx --env-file=.env.local scripts/renew_meta_token.mts",
     "meta:renew:dry": "tsx --env-file=.env.local scripts/renew_meta_token.mts --dry-run",
     "test:reels": "tsx scripts/test_reel_detection.mts",
-    "test:newsletter": "tsx scripts/test_newsletter_dates.mts"
+    "test:newsletter": "tsx scripts/test_newsletter_dates.mts",
+    "test:csv": "tsx scripts/test_csv_export.mts"
   },
   "dependencies": {
     "csv-parse": "^7.0.2",

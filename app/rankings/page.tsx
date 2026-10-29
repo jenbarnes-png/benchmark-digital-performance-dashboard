@@ -3,6 +3,7 @@ import { getRankings } from "@/lib/rankings";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import RankingsFilters from "./RankingsFilters";
 import RankingsTable from "./RankingsTable";
+import RankingsExport from "./RankingsExport";
 
 export default async function RankingsPage({
   searchParams,
@@ -48,6 +49,8 @@ export default async function RankingsPage({
         periods={data.periods}
         current={{ region, cohort, period: data.targetPeriod?.start }}
       />
+
+      <RankingsExport regions={data.regions} periods={data.periods} currentRegion={region} />
 
       <RankingsTable rows={data.rows} />
     </div>

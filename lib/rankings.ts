@@ -856,6 +856,8 @@ export type RankingRow = {
   /** Whether an ad is running right now — the hex map's 🟢 status. */
   adLive: boolean;
   tiktok: {
+    /** TikTok points this week (recency tiers plus the weekly best-video point). */
+    points?: number;
     hasData: boolean;
     reach: number;
     postedInLast30Days: boolean;
@@ -890,50 +892,15 @@ export type RankingsResult = {
   lastUpdated: string | null;
 };
 
-export async function getRankings(filters: {
-  region?: string;
-  cohort?: string;
-  period?: string;
-}): Promise<RankingsResult> {
-  const [{ index, periods }, constituencies, regions, cohorts, lastUpdated] = await Promise.all([
-    buildMetricsIndex(),
-    sql<Constituency[]>`select * from constituencies where not is_hidden`,
-    listRegions(),
-    listCohorts(),
-    getLastUpdated(),
-  ]);
-
-  // No activity has been tracked for anyone yet — every constituency is
-  // shown, unranked/scoreless, rather than crashing on a missing period.
-  if (periods.length === 0) {
-    const rows: RankingRow[] = constituencies
-      .filter((c) => !filters.region || c.region === filters.region)
-      .filter((c) => !filters.cohort || c.cohort === filters.cohort)
-      .map((c) => ({
-        constituency: c,
-        rank: 1,
-        score: null,
-        scoreMaxPoints: FALLBACK_MAX_POINTS,
-        previousScore: null,
-        change: { delta: null, direction: "unknown" as const },
-        adLive: false,
-        tiktok: {
-          hasData: false,
-          reach: 0,
-          postedInLast30Days: false,
-          postedInLast7Days: false,
-          isBestPostWinner: false,
-        },
-        channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
-        newsletterActivity: { hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
-        group: { hasData: false, postCount: 0 },
-        amplifiers: NO_AMPLIFIERS,
-        subscriberGrowth: { hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
-      }));
-    return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
-  }
-
-  const targetPeriod = periods.find((p) => p.start === filters.period) ?? periods[0];
+/** Ranks every visible constituency for one week and returns the rows (optionally narrowed by region/cohort). */
+function buildRowsForPeriod(
+  index: Map<string, PeriodMetrics>,
+  periods: Period[],
+  constituencies: Constituency[],
+  periodStart: string | undefined,
+  filters: { region?: string; cohort?: string }
+): { rows: RankingRow[]; targetPeriod: Period; previousPeriod: Period | null } {
+  const targetPeriod = periods.find((p) => p.start === periodStart) ?? periods[0];
   const targetIndex = periods.findIndex((p) => p.start === targetPeriod.start);
   const previousPeriod = periods[targetIndex + 1] ?? null;
 
@@ -980,6 +947,77 @@ export async function getRankings(filters: {
         subscriberGrowth: currentMetrics?.subscriberGrowth ?? { hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
       };
     });
+
+  return { rows, targetPeriod, previousPeriod };
+}
+
+/**
+ * Rankings for every week from `from` to `to` (Monday dates, either order), oldest first,
+ * for the CSV export. Builds the metrics once and reuses it for every week.
+ */
+export async function getRankingsForRange(params: {
+  from: string;
+  to: string;
+  region?: string;
+}): Promise<{ weeks: { period: Period; rows: RankingRow[] }[]; regions: string[]; availableWeeks: Period[] }> {
+  const [{ index, periods }, constituencies, regions] = await Promise.all([
+    buildMetricsIndex(),
+    sql<Constituency[]>`select * from constituencies where not is_hidden`,
+    listRegions(),
+  ]);
+  const [lo, hi] = params.from <= params.to ? [params.from, params.to] : [params.to, params.from];
+  const chosen = periods.filter((p) => p.start >= lo && p.start <= hi).sort((a, b) => (a.start < b.start ? -1 : 1));
+  const weeks = chosen.map((p) => {
+    const { rows, targetPeriod } = buildRowsForPeriod(index, periods, constituencies, p.start, { region: params.region });
+    return { period: targetPeriod, rows };
+  });
+  return { weeks, regions, availableWeeks: periods };
+}
+
+export async function getRankings(filters: {
+  region?: string;
+  cohort?: string;
+  period?: string;
+}): Promise<RankingsResult> {
+  const [{ index, periods }, constituencies, regions, cohorts, lastUpdated] = await Promise.all([
+    buildMetricsIndex(),
+    sql<Constituency[]>`select * from constituencies where not is_hidden`,
+    listRegions(),
+    listCohorts(),
+    getLastUpdated(),
+  ]);
+
+  // No activity has been tracked for anyone yet — every constituency is
+  // shown, unranked/scoreless, rather than crashing on a missing period.
+  if (periods.length === 0) {
+    const rows: RankingRow[] = constituencies
+      .filter((c) => !filters.region || c.region === filters.region)
+      .filter((c) => !filters.cohort || c.cohort === filters.cohort)
+      .map((c) => ({
+        constituency: c,
+        rank: 1,
+        score: null,
+        scoreMaxPoints: FALLBACK_MAX_POINTS,
+        previousScore: null,
+        change: { delta: null, direction: "unknown" as const },
+        adLive: false,
+        tiktok: {
+          hasData: false,
+          reach: 0,
+          postedInLast30Days: false,
+          postedInLast7Days: false,
+          isBestPostWinner: false,
+        },
+        channel: { hasData: false, reelIn7Days: false, postedIn7Days: false },
+        newsletterActivity: { hasData: false, sentInLast30Days: false, sentThisCalendarMonth: false },
+        group: { hasData: false, postCount: 0 },
+        amplifiers: NO_AMPLIFIERS,
+        subscriberGrowth: { hasData: false, grewByAtLeastTarget: false, listSize: null, listSizeMonth: null, listChange: null },
+      }));
+    return { rows, periods, targetPeriod: null, previousPeriod: null, regions, cohorts, lastUpdated };
+  }
+
+  const { rows, targetPeriod, previousPeriod } = buildRowsForPeriod(index, periods, constituencies, filters.period, filters);
 
   return { rows, periods, targetPeriod, previousPeriod, regions, cohorts, lastUpdated };
 }
