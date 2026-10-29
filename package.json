@@ -17,7 +17,10 @@
     "test:amplifiers": "tsx scripts/test_amplifier_scoring.mts",
     "notify:pending": "tsx --env-file=.env.local scripts/notify_pending_approvals.mts",
     "notify:pending:dry": "tsx --env-file=.env.local scripts/notify_pending_approvals.mts --dry-run",
-    "test:digest": "tsx scripts/test_pending_digest.mts"
+    "test:digest": "tsx scripts/test_pending_digest.mts",
+    "meta:renew": "tsx --env-file=.env.local scripts/renew_meta_token.mts",
+    "meta:renew:dry": "tsx --env-file=.env.local scripts/renew_meta_token.mts --dry-run",
+    "test:reels": "tsx scripts/test_reel_detection.mts"
   },
   "dependencies": {
     "csv-parse": "^7.0.2",

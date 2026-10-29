@@ -140,3 +140,17 @@ export async function searchAdsByName(
 ): Promise<ArchivedAd[]> {
   return searchAdsArchive({ search_terms: name }, accessToken, "ALL");
 }
+
+export type TokenStatus = { valid: boolean; expiresAt: Date | null; problem: string | null };
+
+/** Asks Meta whether an access token still works and when it expires. WARNING: never print the token itself. */
+export async function getTokenStatus(token: string): Promise<TokenStatus> {
+  const url = `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(token)}&access_token=${encodeURIComponent(token)}`;
+  const res = await fetch(url);
+  const json = (await res.json()) as { data?: { is_valid?: boolean; expires_at?: number }; error?: { message?: string } };
+  if (json.error || !json.data?.is_valid) {
+    return { valid: false, expiresAt: null, problem: json.error?.message ?? "Meta says this token is not valid." };
+  }
+  const expires = json.data.expires_at;
+  return { valid: true, expiresAt: expires ? new Date(expires * 1000) : null, problem: null };
+}

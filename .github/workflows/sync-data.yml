@@ -35,4 +35,5 @@ jobs:
         run: npx tsx scripts/sync_crete.mts
       - name: Sync Meta ads
         run: npx tsx scripts/sync_meta_ads.mts
-        continue-on-error: true # Meta's token can expire independently of this job; don't fail the whole run over it
+        # Deliberately NOT continue-on-error: an expired Meta token must turn the run red so it is noticed.
+        # The Crete step above has already finished by now, so a Meta failure doesn't lose the posts data.

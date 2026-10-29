@@ -45,6 +45,9 @@ and like/comment counts are a snapshot from when Crete last collected the post.
 | Check Crete is still collecting and every MP is covered this week | `npm run check:crete` |
 | Check the subscriber-growth rule | `npm run test:growth` |
 | Check the amplifier-group points rule | `npm run test:amplifiers` |
+| Check which posts count as Reels | `npm run test:reels` |
+| Renew the Meta token (try first) | `npm run meta:renew:dry` |
+| Renew the Meta token (for real) | `npm run meta:renew` |
 | See the "reports waiting for approval" email without sending it | `npm run notify:pending:dry` |
 | Send that reminder email for real | `npm run notify:pending` |
 | Check the reminder email wording | `npm run test:digest` |
@@ -60,6 +63,18 @@ Every write is a safe upsert, so running a sync twice never duplicates anything.
 A GitHub Actions job (`.github/workflows/sync-data.yml`) runs both syncs every 4 hours.
 To see it: GitHub, the repository, the **Actions** tab. Open a run to read its log.
 You can also start one by hand with **Run workflow**.
+
+## Renewing the Meta token (about every 60 days)
+
+The ads sync stops working when the Meta token expires. The scheduled sync then shows a **red cross** in GitHub
+(Actions tab) with a message saying so, and warns for 10 days beforehand. To renew:
+
+1. In Meta's Graph API Explorer (developers.facebook.com, Tools), choose **your own app** in the "Meta App" dropdown
+   (not the default one, or the swap fails), then Generate Access Token with the `ads_read` permission.
+2. Add three lines to `.env.local` (never paste them into chat): `META_APP_ID`, `META_APP_SECRET` (both on your app's
+   Settings, Basic page) and `META_SHORT_LIVED_TOKEN` (the token you just generated).
+3. `npm run meta:renew:dry` checks it works. Then `npm run meta:renew` swaps it for a 60-day token and saves it in
+   `.env.local`, Vercel and GitHub. Then `npm run sync:meta` to refresh ads straight away.
 
 ## Approval emails
 
@@ -111,7 +126,8 @@ All are set in `.env.local` (your computer) or in Vercel's environment variables
 | Problem | Likely cause | Fix |
 |---|---|---|
 | `Missing setting: ...` | A value isn't in `.env.local` | Follow the "How to fix" line in the message; see `.env.example` |
-| Ads sync fails with a Meta error | The Meta token expired (about every 60 days) | Make a new one in Meta's Graph API Explorer, update `META_ACCESS_TOKEN` in `.env.local`, Vercel and GitHub secrets |
+| Ads sync fails with a Meta error | The Meta token expired (about every 60 days) | Follow "Renewing the Meta token" above |
+| Instagram Reels suddenly drop to 0 | Crete changed how it labels Instagram videos | Check `lib/crete.ts` `isReel`; Instagram "Video" counts as a Reel since 21 Oct 2026 |
 | `Crete ... failed: HTTP 403` | The Crete key lacks read access, or was rotated | Ask Sapio for a read key on the `crete-*` indices and update `ES_API_KEY` |
 | An MP shows no Facebook/Instagram/TikTok | Crete hasn't collected their account yet, or the account isn't matched | Run `npm run check:crete`; look for `could not match` lines in a sync |
 | "Stopped: read more than ... posts" | The safety limit was hit | If that volume is expected, raise `CRETE_MAX_POSTS` |

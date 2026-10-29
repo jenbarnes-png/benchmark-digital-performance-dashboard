@@ -219,3 +219,14 @@ export async function creteHealth(): Promise<
   }
   return out;
 }
+
+/**
+ * Whether a post counts as a Reel for the "posted a Reel this week" point.
+ * Facebook labels them "Reel". Instagram used to as well, but from about 21 Oct 2026 Crete
+ * labels all Instagram videos "Video" (Instagram now publishes every feed video as a Reel),
+ * so on Instagram "Video" counts too.
+ */
+export function isReel(platform: CretePlatform, type: string | null): boolean {
+  if (type === "Reel") return true;
+  return platform === "instagram" && type === "Video";
+}

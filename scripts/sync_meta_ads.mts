@@ -13,6 +13,7 @@ import { sql } from "../lib/db";
 import { syncMetaAds } from "../lib/adSpendSync";
 import { aggregateRecentAdSpend } from "../lib/adSpendAggregation";
 import { requireEnv } from "../lib/env";
+import { getTokenStatus } from "../lib/meta";
 import { log } from "../lib/log";
 
 const dryRun = process.argv.includes("--dry-run");
@@ -32,6 +33,22 @@ try {
     "the key that lets us read Meta's public Ad Library",
     "Generate one in Meta's Graph API Explorer (developers.facebook.com > Tools). Tokens last about 60 days, so an expired one is the usual cause of a failure."
   );
+
+  // Check the token first so an expired one gives a clear message, and a soon-to-expire one gives warning.
+  const status = await getTokenStatus(accessToken);
+  if (!status.valid) {
+    throw new Error(
+      `The Meta access token is no longer valid (${status.problem}). What failed: ads can't be read from Meta. ` +
+        `Why: Meta tokens expire about every 60 days. How to fix: generate a new token and run "npm run meta:renew" (see README, "Renewing the Meta token").`
+    );
+  }
+  if (status.expiresAt) {
+    const daysLeft = Math.floor((status.expiresAt.getTime() - Date.now()) / 86_400_000);
+    if (daysLeft <= 10) {
+      log.warn("meta-ads", `The Meta token expires in ${daysLeft} day(s) (${status.expiresAt.toISOString().slice(0, 10)}). Renew it soon with "npm run meta:renew".`);
+      console.log(`::warning::Meta token expires in ${daysLeft} day(s). Renew it with npm run meta:renew.`);
+    }
+  }
 
   log.info("meta-ads", dryRun ? "DRY RUN: reading from the Meta Ad Library, nothing will be written." : "Starting. Reading ads from the Meta Ad Library.");
   const summary = await syncMetaAds(accessToken, { dryRun });

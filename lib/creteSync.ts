@@ -1,5 +1,5 @@
 import { sql } from "./db";
-import { accountKey, fetchCretePosts, type CretePlatform, type CretePost } from "./crete";
+import { accountKey, fetchCretePosts, isReel, type CretePlatform, type CretePost } from "./crete";
 
 // Same all-words-present matching used to resolve Meta advertisers.
 function words(text: string): string[] {
@@ -297,7 +297,7 @@ export async function syncCrete(options: { dryRun?: boolean } = {}): Promise<Cre
           platform: feedPlatform,
           date: day,
           post_count: dayPosts.length,
-          reel_count: dayPosts.filter((p) => p.type === "Reel").length,
+          reel_count: dayPosts.filter((p) => isReel(feedPlatform, p.type)).length,
           video_count: feedPlatform === "facebook" ? dayPosts.filter((p) => p.type === "Reel" || p.type === "Video").length : null,
           // The Crete store has no reach figure, only likes/comments/shares (and views on video).
           reach: null,
