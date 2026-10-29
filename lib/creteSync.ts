@@ -131,7 +131,7 @@ export async function syncCrete(options: { dryRun?: boolean } = {}): Promise<Cre
     out.accountsSeen = byAccount.size;
 
     const matchedReps = new Set<string>();
-    const resolved: { key: string; repId: string; accountRowId: string | null; posts: CretePost[]; fixLink: boolean }[] = [];
+    const resolved: { key: string; repId: string; accountRowId: string | null; posts: CretePost[]; fixLink: boolean; extra?: boolean }[] = [];
 
     // Pass 1: accounts whose URL matches a link we already hold.
     const leftovers: [string, CretePost[]][] = [];
@@ -174,6 +174,19 @@ export async function syncCrete(options: { dryRun?: boolean } = {}): Promise<Cre
         resolved.push({ key, repId: rep.id, accountRowId: manualRow, posts: accPosts, fixLink: manualRow !== null });
         matchedReps.add(rep.id);
         out.fallbackMatches.push({ account: label, mp: rep.name + (manualRow ? " (replaced their stored link)" : "") });
+      } else if (candidates.length === 0 && platform !== "tiktok") {
+        // An MP can have more than one page (e.g. a personal page and a "for Smethwick" page).
+        // If this account's name clearly matches an MP we already have an account for, count its
+        // posts with theirs. It adds posts only; it doesn't create a second link or change followers.
+        const owners = reps.filter(
+          (r) => matchedReps.has(r.id) && (nameMatches(sample.accountName, r.name) || nameMatches(sample.accountNickname, r.name))
+        );
+        if (owners.length === 1) {
+          resolved.push({ key, repId: owners[0].id, accountRowId: null, posts: accPosts, fixLink: false, extra: true });
+          out.fallbackMatches.push({ account: label, mp: `${owners[0].name} (a second page, counted with their other one)` });
+        } else {
+          out.unmatchedAccounts.push({ account: label, reason: "no MP with that name" });
+        }
       } else {
         out.unmatchedAccounts.push({
           account: label,
@@ -186,6 +199,7 @@ export async function syncCrete(options: { dryRun?: boolean } = {}): Promise<Cre
 
     // Make sure each matched account has a social_accounts row with a fresh follower count.
     for (const acct of resolved) {
+      if (acct.extra) continue; // a second page: posts only, no account row of its own
       if (dryRun) {
         acct.accountRowId = acct.accountRowId ?? "dry-run";
         continue;
