@@ -72,11 +72,11 @@ export async function proxy(request: NextRequest) {
     const sessionToken = request.cookies.get(BEACON_SESSION_COOKIE)?.value;
     if (sessionToken) {
       // Admin / Data Entry (pages, form submissions and the screenshot route
-      // all live under /admin) is staff-only, apart from the two data-entry
-      // forms client accounts need to report numbers. This one path gets the real
+      // all live under /admin) and the Rankings CSV download are staff-only,
+      // apart from the data-entry forms client accounts need to report numbers. This one path gets the real
       // check here rather than the optimistic cookie test, so a forged cookie
       // or a client account can't reach it. Low traffic, so the extra call is fine.
-      if (request.nextUrl.pathname.startsWith("/admin")) {
+      if (request.nextUrl.pathname.startsWith("/admin") || request.nextUrl.pathname.startsWith("/rankings/export")) {
         const user = await fetchBeaconUser(sessionToken);
         if (!user) return signInRedirect(request);
         if (!canUseAdmin(user.role) && !adminPathAllowedForClient(request.nextUrl.pathname)) {

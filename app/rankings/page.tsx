@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getRankings } from "@/lib/rankings";
+import { beaconAuthEnabled, getBeaconUser } from "@/lib/beaconAuth";
+import { canUseAdmin } from "@/lib/beaconSession";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import RankingsFilters from "./RankingsFilters";
 import RankingsTable from "./RankingsTable";
@@ -14,6 +16,10 @@ export default async function RankingsPage({
   const period = typeof params.period === "string" ? params.period : undefined;
 
   const data = await getRankings({ region, cohort, period });
+
+  // The CSV download is for staff and admins only; MP-team (client) accounts don't see it.
+  const user = beaconAuthEnabled() ? await getBeaconUser() : null;
+  const canExport = !beaconAuthEnabled() || (user !== null && canUseAdmin(user.role));
 
   return (
     <div className="space-y-6">
@@ -50,7 +56,7 @@ export default async function RankingsPage({
         current={{ region, cohort, period: data.targetPeriod?.start }}
       />
 
-      <RankingsExport regions={data.regions} periods={data.periods} currentRegion={region} />
+      {canExport && <RankingsExport regions={data.regions} periods={data.periods} currentRegion={region} />}
 
       <RankingsTable rows={data.rows} />
     </div>

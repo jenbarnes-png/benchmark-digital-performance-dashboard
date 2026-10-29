@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { beaconAuthEnabled, getBeaconUser } from "@/lib/beaconAuth";
+import { canUseAdmin } from "@/lib/beaconSession";
 import { getRankingsForRange } from "@/lib/rankings";
 import { rankingsFileName, rankingsToCsv } from "@/lib/rankingsExport";
 
@@ -12,7 +13,12 @@ const plain = (message: string, status: number) =>
 
 export async function GET(request: Request) {
   // Route handlers aren't covered by the page layout's sign-in check, so check the session here too.
-  if (beaconAuthEnabled() && !(await getBeaconUser())) return plain("Please sign in to Project Beacon to download this.", 401);
+  // Only staff and admin accounts can download (the proxy checks this too).
+  if (beaconAuthEnabled()) {
+    const user = await getBeaconUser();
+    if (!user) return plain("Please sign in to Project Beacon to download this.", 401);
+    if (!canUseAdmin(user.role)) return plain("The Rankings download is only available to Project Beacon staff and admins.", 403);
+  }
 
   const url = new URL(request.url);
   const from = url.searchParams.get("from") ?? "";
