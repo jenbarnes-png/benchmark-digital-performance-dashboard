@@ -18,7 +18,6 @@ type SortKey =
   | "tiktokReach"
   | "channelReel"
   | "channelPosted"
-  | "newsletterSent"
   | "newsletterMonth"
   | "groupPosts"
   | "amplifiers"
@@ -39,7 +38,6 @@ const DEFAULT_DIR: Record<SortKey, SortDir> = {
   tiktokReach: "desc",
   channelReel: "desc",
   channelPosted: "desc",
-  newsletterSent: "desc",
   newsletterMonth: "desc",
   groupPosts: "desc",
   amplifiers: "desc",
@@ -127,7 +125,6 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
       tiktokReach: r.tiktok.hasData ? r.tiktok.reach : -1,
       channelReel: r.channel.hasData ? (r.channel.reelIn7Days ? 1 : 0) : -1,
       channelPosted: r.channel.hasData ? (r.channel.postedIn7Days ? 1 : 0) : -1,
-      newsletterSent: r.newsletterActivity.hasData ? (r.newsletterActivity.sentInLast30Days ? 1 : 0) : -1,
       newsletterMonth: r.newsletterActivity.hasData ? (r.newsletterActivity.sentThisCalendarMonth ? 1 : 0) : -1,
       groupPosts: r.group.hasData ? r.group.postCount : -1,
       amplifiers: r.amplifiers.hasData ? r.amplifiers.points : -1,
@@ -162,7 +159,6 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 ["TikTok reach (last 30 days)", "tiktokReach"],
                 ["Reel (last 7 days)", "channelReel"],
                 ["Posted FB/IG (last 7 days)", "channelPosted"],
-                ["Newsletter (last 30 days)", "newsletterSent"],
                 ["Newsletter sent this month", "newsletterMonth"],
                 ["Facebook group posts (manual)", "groupPosts"],
                 ["Amplifier group (points)", "amplifiers"],
@@ -245,9 +241,6 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
                 <YesNoCell hasData={r.channel.hasData} value={r.channel.postedIn7Days} />
               </td>
               <td className="px-4 py-3">
-                <YesNoCell hasData={r.newsletterActivity.hasData} value={r.newsletterActivity.sentInLast30Days} />
-              </td>
-              <td className="px-4 py-3">
                 <YesNoCell
                   hasData={r.newsletterActivity.hasData}
                   value={r.newsletterActivity.sentThisCalendarMonth}
@@ -293,7 +286,7 @@ export default function RankingsTable({ rows }: { rows: RankingRow[] }) {
           ))}
           {sorted.length === 0 && (
             <tr>
-              <td colSpan={18} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
+              <td colSpan={17} className="px-4 py-8 text-center text-black/50 dark:text-white/50">
                 No constituencies match these filters.
               </td>
             </tr>
