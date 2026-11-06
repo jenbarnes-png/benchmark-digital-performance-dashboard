@@ -19,8 +19,10 @@ function nameMatches(candidate: string | null, mpName: string): boolean {
 }
 // "katiewhiteobemp" contains "katiewhite". Handles have no spaces, so squash the name.
 function handleContainsName(handle: string, mpName: string): boolean {
-  const squashed = words(mpName).join("");
-  return squashed.length >= 8 && handle.toLowerCase().replace(/[^a-z0-9]/g, "").includes(squashed);
+  const target = handle.toLowerCase().replace(/[^a-z0-9]/g, "");
+  // Also try the formal form of a short first name, e.g. "jessmorden" and "jessicamorden".
+  const variants = [words(mpName), words(mpName).map((w) => FORMAL_NAMES[w] ?? w)].map((w) => w.join(""));
+  return variants.some((squashed) => squashed.length >= 8 && target.includes(squashed));
 }
 
 const LONDON_DATE = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" });
