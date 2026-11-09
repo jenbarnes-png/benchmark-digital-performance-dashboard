@@ -974,6 +974,118 @@ export async function getRankingsForRange(params: {
   return { weeks, regions, availableWeeks: periods };
 }
 
+/** One MP's results added up across every tracked week — the "All weeks combined" view. */
+export type ProgrammeTotalRow = {
+  constituency: Constituency;
+  rank: number;
+  /** Sum of the weekly scores, over the weeks the MP had a score. null when no week has a score. */
+  totalPoints: number | null;
+  /** What those same weeks were worth in total, so "62 of 119" compares like with like. */
+  maxPoints: number;
+  weeksScored: number;
+  averagePerWeek: number | null;
+  tiktokVideos: number;
+  tiktokViews: number;
+  /** Weeks with at least one Facebook/Instagram post, and weeks with a Reel. */
+  weeksPostedFbIg: number;
+  weeksWithReel: number;
+  groupPosts: number;
+  amplifierPoints: number;
+  /** Latest declared email list size. */
+  listSize: number | null;
+};
+
+export type ProgrammeTotalsResult = {
+  rows: ProgrammeTotalRow[];
+  /** Every tracked week, including the current part-week, oldest first. */
+  weeks: Period[];
+  regions: string[];
+  cohorts: string[];
+  periods: Period[];
+  lastUpdated: string | null;
+};
+
+/**
+ * Every week added together, per MP: the whole-programme view. Weekly scores are summed exactly as they
+ * appear on the weekly Rankings, so the newsletter and list-growth points (which are decided per calendar
+ * month and shown on each week of that month) are included the same way. Real totals that don't depend on
+ * the scoring (TikTok videos and views, posts, group posts) are counted straight from the data.
+ */
+export async function getProgrammeTotals(filters: { region?: string; cohort?: string }): Promise<ProgrammeTotalsResult> {
+  const [{ index, periods }, constituencies, regions, cohorts, lastUpdated] = await Promise.all([
+    buildMetricsIndex(),
+    sql<Constituency[]>`select * from constituencies where not is_hidden`,
+    listRegions(),
+    listCohorts(),
+    getLastUpdated(),
+  ]);
+  const weeks = [...periods].sort((a, b) => (a.start < b.start ? -1 : 1));
+
+  // TikTok totals come straight from the videos posted since the first tracked week.
+  const tiktokByConstituency = new Map<string, { videos: number; views: number }>();
+  if (weeks.length > 0) {
+    const since = weeks[0].start;
+    const rows = await sql<{ constituency_id: string; videos: number; views: number }[]>`
+      select r.constituency_id, count(*)::int as videos, coalesce(sum(tv.view_count), 0)::bigint::int as views
+      from tiktok_videos tv
+      join social_accounts sa on sa.id = tv.account_id and sa.ended_at is null
+      join representatives r on r.id = sa.representative_id and r.ended_at is null
+      where tv.posted_at >= ${since}::date
+      group by r.constituency_id
+    `;
+    for (const r of rows) tiktokByConstituency.set(r.constituency_id, { videos: r.videos, views: r.views });
+  }
+
+  const totals = constituencies.map((c) => {
+    let totalPoints = 0;
+    let maxPoints = 0;
+    let weeksScored = 0;
+    let weeksPostedFbIg = 0;
+    let weeksWithReel = 0;
+    let groupPosts = 0;
+    let amplifierPoints = 0;
+    let listSize: number | null = null;
+    for (const w of weeks) {
+      const m = index.get(periodKey(c.id, w.start));
+      if (!m) continue;
+      if (m.overall !== null) {
+        totalPoints += m.overall;
+        maxPoints += m.overallMaxPoints;
+        weeksScored++;
+      }
+      if (m.channel.postedIn7Days) weeksPostedFbIg++;
+      if (m.channel.reelIn7Days) weeksWithReel++;
+      groupPosts += m.group.postCount;
+      amplifierPoints += m.amplifiers.points;
+      if (m.subscriberGrowth.listSize !== null) listSize = m.subscriberGrowth.listSize; // weeks run oldest first, so this ends as the latest
+    }
+    const tiktok = tiktokByConstituency.get(c.id) ?? { videos: 0, views: 0 };
+    return {
+      constituency: c,
+      score: weeksScored > 0 ? totalPoints : null,
+      totalPoints: weeksScored > 0 ? totalPoints : null,
+      maxPoints,
+      weeksScored,
+      averagePerWeek: weeksScored > 0 ? Math.round((totalPoints / weeksScored) * 10) / 10 : null,
+      tiktokVideos: tiktok.videos,
+      tiktokViews: tiktok.views,
+      weeksPostedFbIg,
+      weeksWithReel,
+      groupPosts,
+      amplifierPoints,
+      listSize,
+    };
+  });
+
+  // Rank across every visible MP; the region/cohort filters only narrow what's shown, as on the weekly view.
+  const rows: ProgrammeTotalRow[] = rankByScore(totals)
+    .filter((r) => !filters.region || r.constituency.region === filters.region)
+    .filter((r) => !filters.cohort || r.constituency.cohort === filters.cohort)
+    .map(({ score: _score, ...row }) => row);
+
+  return { rows, weeks, regions, cohorts, periods, lastUpdated };
+}
+
 export async function getRankings(filters: {
   region?: string;
   cohort?: string;

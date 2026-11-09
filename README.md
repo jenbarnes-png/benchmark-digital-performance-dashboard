@@ -124,6 +124,14 @@ means there was no data, which is different from a 0. Hidden MPs are left out, a
 Google Sheets. The address behind the button is `/rankings/export?from=2026-10-05&to=2026-10-26&region=Wales`, which
 can be saved as a bookmark.
 
+## All weeks combined
+
+On Rankings, the **Period** dropdown has an **All weeks combined** option at the top. It adds every tracked week together for each MP:
+total points (and what those weeks were worth, e.g. 52 of 102), average per week, TikTok videos and views, weeks posted on
+Facebook/Instagram, weeks with a Reel, Facebook Group posts, amplifier points and the latest email list size. Weekly scores are
+summed exactly as shown week by week (so the newsletter and list-growth points, which are decided per calendar month, count in
+each week of that month). The latest week is included even while it is still in progress. The CSV export is still per week.
+
 ## Who can see what
 
 - Any signed-in Beacon account can view the dashboard.

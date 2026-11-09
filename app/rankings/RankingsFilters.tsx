@@ -68,6 +68,7 @@ export default function RankingsFilters({
             onChange={(e) => update("period", e.target.value)}
             className="rounded-md border border-black/15 bg-transparent px-3 py-1.5 text-sm dark:border-white/20"
           >
+            <option value="all">All weeks combined</option>
             {periods.map((p) => (
               <option key={p.start} value={p.start}>
                 {formatPeriodLabel(p)}
