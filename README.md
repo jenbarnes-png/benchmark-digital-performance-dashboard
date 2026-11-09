@@ -42,6 +42,8 @@ and like/comment counts are a snapshot from when Crete last collected the post.
 | Pull the latest posts from Crete (for real) | `npm run sync:crete` |
 | Pull the latest ads from Meta (try first) | `npm run sync:meta:dry` |
 | Pull the latest ads from Meta (for real) | `npm run sync:meta` |
+| Stopgap: read an MP's public TikTok video pages while Crete isn't collecting them (try first) | `npm run read:tiktok:dry -- <video links>` |
+| Same, for real (no links = just refresh videos already held) | `npm run read:tiktok -- <video links>` |
 | Check Crete is still collecting and every MP is covered this week | `npm run check:crete` |
 | Check the subscriber-growth rule | `npm run test:growth` |
 | Check the amplifier-group points rule | `npm run test:amplifiers` |
@@ -59,6 +61,14 @@ and like/comment counts are a snapshot from when Crete last collected the post.
 `INFO crete-sync facebook: 223 posts from 24 accounts, 24 matched to an MP.`, ending in
 `Success.` If it fails you get `ERROR ... FAILED.` followed by what went wrong and how to fix it.
 Every write is a safe upsert, so running a sync twice never duplicates anything.
+
+## TikTok stopgap (temporary)
+
+While Crete isn't collecting an MP's TikTok yet (at the moment Becky Gittins and Chris Vince), `npm run read:tiktok` reads
+TikTok's public video pages for the links you give it and saves the counts, marked as hand-entered. It only accepts accounts
+that have a manual link, and it reads one page every 1.5 seconds. It is **not** part of the automatic sync, because TikTok
+doesn't allow automated collection and can block it. Once Crete collects the account, its sync overwrites the same videos
+(same web address), so nothing is double-counted, and this step can be dropped.
 
 ## The automatic sync
 
