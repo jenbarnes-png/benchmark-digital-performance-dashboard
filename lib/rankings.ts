@@ -989,6 +989,8 @@ export type ProgrammeTotalRow = {
   /** Weeks with at least one Facebook/Instagram post, and weeks with a Reel. */
   weeksPostedFbIg: number;
   weeksWithReel: number;
+  /** An ad was running at the end of at least one tracked week. */
+  ranAds: boolean;
   groupPosts: number;
   amplifierPoints: number;
   /** Latest declared email list size. */
@@ -1042,6 +1044,7 @@ export async function getProgrammeTotals(filters: { region?: string; cohort?: st
     let weeksScored = 0;
     let weeksPostedFbIg = 0;
     let weeksWithReel = 0;
+    let ranAds = false;
     let groupPosts = 0;
     let amplifierPoints = 0;
     let listSize: number | null = null;
@@ -1055,6 +1058,7 @@ export async function getProgrammeTotals(filters: { region?: string; cohort?: st
       }
       if (m.channel.postedIn7Days) weeksPostedFbIg++;
       if (m.channel.reelIn7Days) weeksWithReel++;
+      if (m.adSpend.recencyStatus === "active") ranAds = true;
       groupPosts += m.group.postCount;
       amplifierPoints += m.amplifiers.points;
       if (m.subscriberGrowth.listSize !== null) listSize = m.subscriberGrowth.listSize; // weeks run oldest first, so this ends as the latest
@@ -1071,6 +1075,7 @@ export async function getProgrammeTotals(filters: { region?: string; cohort?: st
       tiktokViews: tiktok.views,
       weeksPostedFbIg,
       weeksWithReel,
+      ranAds,
       groupPosts,
       amplifierPoints,
       listSize,

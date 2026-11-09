@@ -12,6 +12,7 @@ type SortKey =
   | "region"
   | "points"
   | "average"
+  | "ranAds"
   | "tiktokVideos"
   | "tiktokViews"
   | "weeksPostedFbIg"
@@ -30,6 +31,7 @@ const COLUMNS: [string, SortKey][] = [
   ["Region", "region"],
   ["Total points (all weeks)", "points"],
   ["Average per week", "average"],
+  ["Ran ads", "ranAds"],
   ["TikTok videos", "tiktokVideos"],
   ["TikTok views", "tiktokViews"],
   ["Weeks posted FB/IG", "weeksPostedFbIg"],
@@ -53,6 +55,8 @@ function sortValue(r: ProgrammeTotalRow, key: SortKey): string | number {
       return r.totalPoints ?? -1;
     case "average":
       return r.averagePerWeek ?? -1;
+    case "ranAds":
+      return r.ranAds ? 1 : 0;
     case "tiktokVideos":
       return r.tiktokVideos;
     case "tiktokViews":
@@ -161,6 +165,16 @@ export default function ProgrammeTotalsTable({ rows, weekCount }: { rows: Progra
                   )}
                 </td>
                 <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">{r.averagePerWeek ?? "—"}</td>
+                <td className="px-4 py-3">
+                  {r.ranAds ? (
+                    <span className="inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+                      Yes
+                    </span>
+                  ) : (
+                    <span className="text-black/50 dark:text-white/50">No</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">{r.tiktokVideos.toLocaleString()}</td>
                 <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">{r.tiktokViews.toLocaleString()}</td>
                 <td className="px-4 py-3 tabular-nums text-black/70 dark:text-white/70">{r.weeksPostedFbIg}</td>
