@@ -26,7 +26,7 @@ const ROWS: { metric: string; points: number; source: "automatic" | "manual"; de
     metric: "Paid advertising (Meta)",
     points: AD_RECENCY_POINTS.active,
     source: "automatic",
-    detail: "🟢 An ad running right now = 2. 🔴 None running = 0.",
+    detail: "🟢 An ad running right now = 2. 🔴 None running = 0. In an ads-push week this is doubled (4), and that week's maximum is 19.",
   },
   {
     metric: "Facebook & Instagram",

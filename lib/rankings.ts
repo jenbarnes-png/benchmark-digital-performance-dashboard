@@ -753,7 +753,7 @@ async function buildMetricsIndex() {
   for (const point of rawPoints) {
     const peers = peersByPeriod.get(point.period)!;
     const metrics: MetricScore[] = [
-      { key: "adSpend", ...scoreForAdRecency(point.adSpend.recencyStatus) },
+      { key: "adSpend", ...scoreForAdRecency(point.adSpend.recencyStatus, point.period) },
       scoreMetric({
         key: "organic",
         hasData: point.organic.hasData,

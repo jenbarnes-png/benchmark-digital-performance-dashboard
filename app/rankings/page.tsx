@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getRankings, getProgrammeTotals } from "@/lib/rankings";
 import { beaconAuthEnabled, getBeaconUser } from "@/lib/beaconAuth";
 import { canUseAdmin } from "@/lib/beaconSession";
+import { adPointsMultiplier } from "@/lib/adRecency";
 import { formatDateTime, formatPeriodLabel } from "@/lib/format";
 import RankingsFilters from "./RankingsFilters";
 import RankingsTable from "./RankingsTable";
@@ -68,6 +69,12 @@ export default async function RankingsPage({
           Data last updated: {formatDateTime(data.lastUpdated)}
         </p>
       </div>
+
+      {weekly?.targetPeriod && adPointsMultiplier(weekly.targetPeriod.start) > 1 && (
+        <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+          Ads push: ads are worth double this week (4 points instead of 2), so the maximum score is 19.
+        </p>
+      )}
 
       <RankingsFilters
         regions={data.regions}

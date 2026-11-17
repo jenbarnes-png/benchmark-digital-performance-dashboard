@@ -113,6 +113,8 @@ All are set in `.env.local` (your computer) or in Vercel's environment variables
 - `TRACKING_START`: the first Monday shown on Rankings. Earlier weeks are hidden.
 - `CRETE_MAX_POSTS`: safety limit on posts read per platform per run (default 50,000).
 - `META_MAX_PAGES`: safety limit on Meta pages fetched per search (default 60).
+- `AD_DOUBLE_POINTS_WEEKS`: weeks (Monday dates, comma-separated) in which ads are worth 4 points instead of 2, for an ads push.
+  Default is the week of 2026-11-16; `none` turns it off. That week's maximum becomes 19. Change it in Vercel and redeploy.
 - `APPROVAL_EMAILS`: who is emailed when a manual report needs approving.
 - `BEACON_AUTH`: set to `on` online to require the Project Beacon sign-in.
 

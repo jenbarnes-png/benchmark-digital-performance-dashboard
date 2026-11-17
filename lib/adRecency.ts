@@ -36,14 +36,33 @@ export const AD_RECENCY_POINTS: Record<Exclude<AdRecencyStatus, "no_advertiser">
   stale: 0,
 };
 
-export function scoreForAdRecency(status: AdRecencyStatus): {
+/**
+ * Weeks (Monday dates, YYYY-MM-DD) in which ads are worth double, for an ads push. Set AD_DOUBLE_POINTS_WEEKS
+ * in .env.local / Vercel as a comma-separated list, e.g. "2026-11-16,2026-11-23". The default is the week of
+ * 16 Nov 2026. Set it to "none" to switch it off.
+ */
+export const AD_DOUBLE_POINTS_WEEKS: string[] = (process.env.AD_DOUBLE_POINTS_WEEKS ?? "2026-11-16")
+  .split(",")
+  .map((w) => w.trim())
+  .filter((w) => /^\d{4}-\d{2}-\d{2}$/.test(w));
+
+/** 2 in an ads-push week, otherwise 1. */
+export function adPointsMultiplier(weekStart: string): number {
+  return AD_DOUBLE_POINTS_WEEKS.includes(weekStart) ? 2 : 1;
+}
+
+export function scoreForAdRecency(
+  status: AdRecencyStatus,
+  weekStart?: string
+): {
   hasData: boolean;
   score: number | null;
   maxPoints: number;
 } {
-  // maxPoints is fixed at the metric's max (2) regardless of hasData —
-  // see MetricScore.maxPoints in lib/scoring.ts for why.
-  const maxPoints = AD_RECENCY_POINTS.active;
+  // maxPoints is fixed at the metric's max (2, or 4 in an ads-push week) regardless of hasData —
+  // see MetricScore.maxPoints in lib/scoring.ts for why. The score stays a share of that max, so
+  // an active ad earns 100% of whatever the week is worth.
+  const maxPoints = AD_RECENCY_POINTS.active * (weekStart ? adPointsMultiplier(weekStart) : 1);
   if (status === "no_advertiser") return { hasData: false, score: null, maxPoints };
   return { hasData: true, score: (AD_RECENCY_POINTS[status] / 2) * 100, maxPoints };
 }
