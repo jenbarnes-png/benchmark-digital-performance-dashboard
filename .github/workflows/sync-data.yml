@@ -13,7 +13,8 @@ name: Sync live data from Crete and Meta
 # ads too on the days Meta's API is in a better mood.
 on:
   schedule:
-    - cron: "0 */4 * * *"
+    # Every 2 hours: GitHub often delays or skips scheduled runs, so the tighter schedule keeps gaps short.
+    - cron: "0 */2 * * *"
   workflow_dispatch: {}
 
 jobs:

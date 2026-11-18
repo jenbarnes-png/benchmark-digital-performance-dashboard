@@ -17,8 +17,8 @@ It is part of Project Beacon and sits behind the Beacon sign-in.
 
 | What | Source | How often |
 |---|---|---|
-| Facebook, Instagram, TikTok posts and engagement | The **Crete** store (Elasticsearch), run by Sapio | Collected by Sapio about daily; we copy it every 4 hours |
-| Paid ads | Meta's public **Ad Library** (needs a token that expires about every 60 days) | Every 4 hours |
+| Facebook, Instagram, TikTok posts and engagement | The **Crete** store (Elasticsearch), run by Sapio | Collected by Sapio about daily; we copy it every 2 hours |
+| Paid ads | Meta's public **Ad Library** (needs a token that expires about every 60 days) | Every 2 hours |
 | Facebook Group posts, amplifier groups, email list sizes, newsletters | Typed in by hand on the Admin pages | When people log them |
 
 There is no live feed. Posts reach the dashboard a few hours after they are published,
@@ -72,7 +72,7 @@ doesn't allow automated collection and can block it. Once Crete collects the acc
 
 ## The automatic sync
 
-A GitHub Actions job (`.github/workflows/sync-data.yml`) runs both syncs every 4 hours.
+A GitHub Actions job (`.github/workflows/sync-data.yml`) runs both syncs every 2 hours (GitHub sometimes delays or skips scheduled runs, so gaps of several hours can still happen; run the sync by hand if you need fresh numbers).
 To see it: GitHub, the repository, the **Actions** tab. Open a run to read its log.
 You can also start one by hand with **Run workflow**.
 
